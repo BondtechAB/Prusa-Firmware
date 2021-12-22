@@ -6710,6 +6710,10 @@ static void lcd_main_menu()
 
     if(!isPrintPaused && !IS_SD_PRINTING && !is_usb_printing && (lcd_commands_type != LcdCommands::Layer1Cal)) {
         if (!farm_mode) {
+#if defined(BONDTECH_MOSQUITO) || defined(BONDTECH_MOSQUITO_MAGNUM)
+            SETTINGS_NOZZLE;
+#endif //BONDTECH_MOSQUITO*
+
             const int8_t sheet = eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet));
             const int8_t nextSheet = eeprom_next_initialized_sheet(sheet);
             if ((nextSheet >= 0) && (sheet != nextSheet)) { // show menu only if we have 2 or more sheets initialized
