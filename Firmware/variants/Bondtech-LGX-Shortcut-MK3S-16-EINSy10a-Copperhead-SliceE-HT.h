@@ -12,7 +12,7 @@
 #define PRINTER_NAME PRINTER_MK3S_NAME
 #define PRINTER_MMU_TYPE PRINTER_MK3S_MMU2
 #define PRINTER_MMU_NAME PRINTER_MK3S_MMU2_NAME
-#define FILAMENT_SIZE "1_75mm_MK3"
+#define FILAMENT_SIZE "1_75mm_MK3S"
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Developer flag
@@ -77,6 +77,7 @@
 // Canceled home position
 #define X_CANCEL_POS 50
 #define Y_CANCEL_POS 190
+#define Z_CANCEL_LIFT 50
 
 //Pause print position
 #define X_PAUSE_POS 50
@@ -141,7 +142,6 @@
 // Safety timer
 #define SAFETYTIMER
 #define DEFAULT_SAFETYTIMER_TIME_MINS 30
-#define FARM_DEFAULT_SAFETYTIMER_TIME_ms (45*60*1000ul)
 
 // Offline crash dumper
 #define XFLASH_DUMP     // enable dump functionality (including D20/D21/D22)
@@ -359,6 +359,8 @@
 #define EXTRUDER_ALTFAN_DETECT
 #define EXTRUDER_ALTFAN_SPEED_SILENT 255
 
+#define FANCHECK_AUTO_PRINT_FAN_THRS 70 //[RPS] - Used during selftest to identify swapped fans automatically
+#define FANCHECK_AUTO_FAIL_THRS 20 //[RPS] - Used during selftest to identify a faulty fan
 
 
 /*------------------------------------
@@ -408,9 +410,6 @@
 // Define Prusa filament runout sensor
 //#define FILAMENT_RUNOUT_SUPPORT
 
-#ifdef FILAMENT_RUNOUT_SUPPORT
-#define FILAMENT_RUNOUT_SENSOR 1
-#endif
 
 // temperature runaway
 #define TEMP_RUNAWAY_BED_HYSTERESIS 5
@@ -418,6 +417,26 @@
 
 #define TEMP_RUNAWAY_EXTRUDER_HYSTERESIS 15
 #define TEMP_RUNAWAY_EXTRUDER_TIMEOUT 45
+#define TEMP_MODEL 1          // enable model-based temperature checks
+#define TEMP_MODEL_DEBUG 1    // extended runtime logging
+#define TEMP_MODEL_P 38.      // heater power (W)
+#define TEMP_MODEL_C 12.1     // initial guess for heatblock capacitance (J/K)
+#define TEMP_MODEL_Cl 5       // C estimation lower limit
+#define TEMP_MODEL_Ch 20      // C estimation upper limit
+#define TEMP_MODEL_C_thr 0.01 // C estimation iteration threshold
+#define TEMP_MODEL_C_itr 30   // C estimation iteration limit
+#define TEMP_MODEL_R 20.5     // initial guess for heatblock resistance (K/W)
+#define TEMP_MODEL_Rl 5       // R estimation lower limit
+#define TEMP_MODEL_Rh 50      // R estimation upper limit
+#define TEMP_MODEL_R_thr 0.01 // R estimation iteration threshold
+#define TEMP_MODEL_R_itr 30   // R estimation iteration limit
+#define TEMP_MODEL_Ta_corr -7 // Default ambient temperature correction
+#define TEMP_MODEL_LAG 2.1    // Temperature transport delay (s)
+#define TEMP_MODEL_W 1.2      // Default warning threshold (K/s)
+#define TEMP_MODEL_E 1.74     // Default error threshold (K/s)
+#define TEMP_MODEL_CAL_Th 230 // Default calibration working temperature (C)
+#define TEMP_MODEL_CAL_Tl 50  // Default calibration cooling temperature (C)
+#define TEMP_MODEL_Rv {TEMP_MODEL_R, 18.4, 16.7, 15.2, 14.1, 13.3, 12.7, 12.1, 11.7, 11.3, 11., 10.8, 10.6, 10.4, 10.2, 10.1}
 
 /*------------------------------------
  MOTOR CURRENT SETTINGS
@@ -516,8 +535,6 @@
  PREHEAT SETTINGS
  *------------------------------------*/
 
-#define FARM_PREHEAT_HOTEND_TEMP 250
-#define FARM_PREHEAT_HPB_TEMP 80
 
 #define PLA_PREHEAT_HOTEND_TEMP 215
 #define PLA_PREHEAT_HPB_TEMP 60
@@ -630,12 +647,7 @@
 #define PINDA_STEP_T 10
 #define PINDA_MAX_T 100
 
-#define PING_TIME 60 //time in s
-#define PING_TIME_LONG 600 //10 min; used when length of commands buffer > 0 to avoid 0 triggering when dealing with long gcodes
-#define PING_ALLERT_PERIOD 60 //time in s
 
-#define NC_TIME 10 //time in s for periodic important status messages sending which needs reponse from monitoring
-#define NC_BUTTON_LONG_PRESS 15 //time in s
 
 #define LONG_PRESS_TIME 1000 //time in ms for button long press
 #define BUTTON_BLANKING_TIME 200 //time in ms for blanking after button release
@@ -666,6 +678,7 @@
 
 //#define SUPPORT_VERBOSITY
 
+#define MMU_FILAMENT_COUNT 5
 #define MMU_REQUIRED_FW_BUILDNR 83
 #define MMU_HWRESET
 #define MMU_DEBUG //print communication between MMU2 and printer on serial
@@ -680,4 +693,9 @@
 //#define MMU_ALWAYS_CUT
 #define MMU_IDLER_SENSOR_ATTEMPTS_NR 21 //max. number of attempts to load filament if first load failed; value for max bowden length and case when loading fails right at the beginning
 
+#define DEFAULT_N_ARC_CORRECTION       25 // Number of interpolated segments between corrections.
+#define DEFAULT_MM_PER_ARC_SEGMENT     1.0f // REQUIRED - The enforced maximum length of an arc segment
+#define DEFAULT_MIN_MM_PER_ARC_SEGMENT 0.5f //the enforced minimum length of an interpolated segment
+#define DEFAULT_MIN_ARC_SEGMENTS 20 // The enforced minimum segments in a full circle of the same radius.  Set to 0 to disable
+#define DEFAULT_ARC_SEGMENTS_PER_SEC 0 // Use feedrate to choose segment length. Set to 0 to disable
 #endif //__CONFIGURATION_PRUSA_H
