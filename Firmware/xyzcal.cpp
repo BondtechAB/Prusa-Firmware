@@ -1012,6 +1012,7 @@ BedSkewOffsetDetectionResultType xyzcal_scan_and_process(){
 }
 
 BedSkewOffsetDetectionResultType xyzcal_find_bed_induction_sensor_point_xy(void) {
+	BedSkewOffsetDetectionResultType ret = BED_SKEW_OFFSET_DETECTION_POINT_NOT_FOUND;
     // DBG(_n("xyzcal_find_bed_induction_sensor_point_xy x=%ld y=%ld z=%ld\n"), count_position[X_AXIS], count_position[Y_AXIS], count_position[Z_AXIS]);
 	st_synchronize();
   	pos_i16_t x = _X;
@@ -1022,7 +1023,7 @@ BedSkewOffsetDetectionResultType xyzcal_find_bed_induction_sensor_point_xy(void)
   	x = pgm_read_word((uint16_t *)(xyzcal_point_xcoords + point));
   	y = pgm_read_word((uint16_t *)(xyzcal_point_ycoords + point));
   	DBG(_n("point=%d x=%d y=%d z=%d\n"), point, x, y, z);
-	xyzcal_meassure_enter();
+	xyzcal_meassure_center();
   	xyzcal_lineXYZ_to(x, y, z, 200, 0);
   	if (xyzcal_searchZ()){
 		int16_t z = _Z;
