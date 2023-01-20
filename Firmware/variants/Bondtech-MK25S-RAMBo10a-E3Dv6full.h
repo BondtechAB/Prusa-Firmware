@@ -8,22 +8,21 @@
  *------------------------------------*/
 
 // Printer revision
-#define PRINTER_TYPE PRINTER_MK25
-#define PRINTER_NAME PRINTER_MK25_NAME
-#define PRINTER_NAME_ALTERNATE PRINTER_MK25S_NAME //the other similar printer to this.
-#define PRINTER_MMU_TYPE PRINTER_MK25_MMU2
-#define PRINTER_MMU_NAME PRINTER_MK25_MMU2_NAME
-#define FILAMENT_SIZE "1_75mm_MK25"
+#define PRINTER_TYPE PRINTER_MK25S
+#define PRINTER_NAME PRINTER_MK25S_NAME
+#define PRINTER_MMU_TYPE PRINTER_MK25S_MMU2
+#define PRINTER_MMU_NAME PRINTER_MK25S_MMU2_NAME
+#define FILAMENT_SIZE "1_75mm_MK25S"
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Developer flag
 #define DEVELOPER
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "Prusa i3 MK2.5"
+#define CUSTOM_MENDEL_NAME "Bondtech MK25S"
 
 // Electronics
-#define MOTHERBOARD BOARD_RAMBO_MINI_1_3
+#define MOTHERBOARD BOARD_RAMBO_MINI_1_0
 
 #define HEATBED_V2
 #define STEEL_SHEET
@@ -35,13 +34,17 @@
 //#define E3D_PT100_BED_WITH_AMP
 //#define E3D_PT100_BED_NO_AMP
 
+// Extruder
+#define BONDTECH_MK25S
+//#define BONDTECH_MOSQUITO
+//#define BONDTECH_MOSQUITO_MAGNUM
 
 /*------------------------------------
  AXIS SETTINGS
  *------------------------------------*/
 
 // Steps per unit {X,Y,Z,E}
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,133}
+#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,415}
 
 // Endstop inverting
 #define X_MIN_ENDSTOP_INVERTING 0 // set to 1 to invert the logic of the endstop.
@@ -72,7 +75,6 @@
 // Canceled home position
 #define X_CANCEL_POS 50
 #define Y_CANCEL_POS 190
-#define Z_CANCEL_LIFT 50
 
 //Pause print position
 #define X_PAUSE_POS 50
@@ -96,9 +98,8 @@
 #define DEFAULT_MAX_ACCELERATION      {1000, 1000, 200, 5000}  // (mm/sec^2) max acceleration (M201)
 #define DEFAULT_MAX_ACCELERATION_SILENT     {960, 960, 200, 5000}    // (mm/sec^2) max acceleration (M201), silent mode
 
-
-#define DEFAULT_ACCELERATION          1250   // X, Y, Z and E max acceleration in mm/s^2 for printing moves (M204P)
-#define DEFAULT_RETRACT_ACCELERATION  1250   // X, Y, Z and E max acceleration in mm/s^2 for retracts (M204R)
+#define DEFAULT_ACCELERATION          1250   // X, Y, Z and E max acceleration in mm/s^2 for printing moves (M204S)
+#define DEFAULT_RETRACT_ACCELERATION  1250   // X, Y, Z and E max acceleration in mm/s^2 for retracts (M204T)
 #define DEFAULT_TRAVEL_ACCELERATION   1250   // X, Y, Z and E max acceleration in mm/s^2 for travels (M204T)
 
 #define MANUAL_FEEDRATE {2700, 2700, 1000, 100}   // set the speeds for manual moves (mm/min)
@@ -120,14 +121,14 @@
 // Safety timer
 #define SAFETYTIMER
 #define DEFAULT_SAFETYTIMER_TIME_MINS 30
+#define FARM_DEFAULT_SAFETYTIMER_TIME_ms (45*60*1000ul)
 
 // Online crash dumper
 #define EMERGENCY_SERIAL_DUMP   // Request dump via serial on stack corruption and WDR
 #define MENU_SERIAL_DUMP        // Enable "Memory dump" in Settings menu
-
 // Filament sensor
 #define FILAMENT_SENSOR
-#define FILAMENT_SENSOR_TYPE FSENSOR_PAT9125
+#define IR_SENSOR
 
 #define DEBUG_DCODE2
 #define DEBUG_DCODE3
@@ -137,20 +138,22 @@
 //#define _NO_ASM
 #define DEBUG_DCODES //D codes
 #define DEBUG_STACK_MONITOR        //Stack monitor in stepper ISR
+//#define DEBUG_FSENSOR_LOG          //Reports fsensor status to serial
 //#define DEBUG_CRASHDET_COUNTERS  //Display crash-detection counters on LCD
-//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable 
-//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output 
+//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable
+//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output
 //#define DEBUG_DISABLE_XMINLIMIT  //x min limit ignored
 //#define DEBUG_DISABLE_XMAXLIMIT  //x max limit ignored
 //#define DEBUG_DISABLE_YMINLIMIT  //y min limit ignored
 //#define DEBUG_DISABLE_YMAXLIMIT  //y max limit ignored
 //#define DEBUG_DISABLE_ZMINLIMIT  //z min limit ignored
 //#define DEBUG_DISABLE_ZMAXLIMIT  //z max limit ignored
-//#define DEBUG_DISABLE_STARTMSGS //no startup messages 
+//#define DEBUG_DISABLE_STARTMSGS //no startup messages
 //#define DEBUG_DISABLE_MINTEMP   //mintemp error ignored
 //#define DEBUG_DISABLE_SWLIMITS  //sw limits ignored
 //#define DEBUG_DISABLE_LCD_STATUS_LINE  //empty four lcd line
 //#define DEBUG_DISABLE_PREVENT_EXTRUDER //cold extrusion and long extrusion allowed
+//#define DEBUG_DISABLE_PRUSA_STATISTICS //disable prusa_statistics() mesages
 //#define DEBUG_XSTEP_DUP_PIN 21   //duplicate x-step output to pin 21 (SCL on P3)
 //#define DEBUG_YSTEP_DUP_PIN 21   //duplicate y-step output to pin 21 (SCL on P3)
 //#define DEBUG_DISABLE_FANCHECK     //disable fan check (no ISR INT7, check disabled)
@@ -159,6 +162,8 @@
 //#define PLANNER_DIAGNOSTICS // Show the planner queue status on printer display.
 //#define CMD_DIAGNOSTICS //Show cmd queue length on printer display
 #endif /* DEBUG_BUILD */
+
+//#define FSENSOR_QUALITY
 
 
 /*------------------------------------
@@ -217,9 +222,6 @@
 #define EXTRUDER_AUTO_FAN_TEMPERATURE 50
 #define EXTRUDER_AUTO_FAN_SPEED   255  // == full speed
 
-#define FANCHECK_AUTO_PRINT_FAN_THRS 70 //[RPS] - Used during selftest to identify swapped fans automatically
-#define FANCHECK_AUTO_FAIL_THRS 20 //[RPS] - Used during selftest to identify a faulty fan
-
 
 /*------------------------------------
  LOAD/UNLOAD FILAMENT SETTINGS
@@ -227,12 +229,12 @@
 
 // Load filament commands
 #define LOAD_FILAMENT_0 "M83"
-#define LOAD_FILAMENT_1 "G1 E70 F400"
+#define LOAD_FILAMENT_1 "G1 E80 F400"
 #define LOAD_FILAMENT_2 "G1 E40 F100"
 
 // Unload filament commands
 #define UNLOAD_FILAMENT_0 "M83"
-#define UNLOAD_FILAMENT_1 "G1 E-80 F7000"
+#define UNLOAD_FILAMENT_1 "G1 E-95 F7000"
 
 /*------------------------------------
  CHANGE FILAMENT SETTINGS
@@ -245,15 +247,15 @@
 #define FILAMENTCHANGE_YPOS 0
 #define FILAMENTCHANGE_ZADD 2
 #define FILAMENTCHANGE_FIRSTRETRACT -2
-#define FILAMENTCHANGE_FINALRETRACT -80
+#define FILAMENTCHANGE_FINALRETRACT -95
 
-#define FILAMENTCHANGE_FIRSTFEED 70 //E distance in mm for fast filament loading sequence used used in filament change (M600)
-#define FILAMENTCHANGE_FINALFEED 25 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701) 
+#define FILAMENTCHANGE_FIRSTFEED 80 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+#define FILAMENTCHANGE_FINALFEED 25 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
 #define FILAMENTCHANGE_RECFEED 5
 
 #define FILAMENTCHANGE_XYFEED 50
 #define FILAMENTCHANGE_EFEED_FIRST 20 // feedrate in mm/s for fast filament loading sequence used in filament change (M600)
-#define FILAMENTCHANGE_EFEED_FINAL 3.3f // feedrate in mm/s for slow filament loading sequence used in filament change (M600) and filament load (M701) 
+#define FILAMENTCHANGE_EFEED_FINAL 3.3f // feedrate in mm/s for slow filament loading sequence used in filament change (M600) and filament load (M701)
 //#define FILAMENTCHANGE_RFEED 400
 #define FILAMENTCHANGE_RFEED 7000 / 60
 #define FILAMENTCHANGE_EXFEED 2
@@ -264,6 +266,13 @@
 /*------------------------------------
  ADDITIONAL FEATURES SETTINGS
  *------------------------------------*/
+
+// Define Prusa filament runout sensor
+//#define FILAMENT_RUNOUT_SUPPORT
+
+#ifdef FILAMENT_RUNOUT_SUPPORT
+#define FILAMENT_RUNOUT_SENSOR 1
+#endif
 
 // temperature runaway
 #define TEMP_RUNAWAY_BED_HYSTERESIS 5
@@ -377,20 +386,19 @@
  PREHEAT SETTINGS
  *------------------------------------*/
 
+#define FARM_PREHEAT_HOTEND_TEMP 250
+#define FARM_PREHEAT_HPB_TEMP 80
+
 #define PLA_PREHEAT_HOTEND_TEMP 215
 #define PLA_PREHEAT_HPB_TEMP 60
 
 #define PVB_PREHEAT_HOTEND_TEMP 215
 #define PVB_PREHEAT_HPB_TEMP 75
-
 #define ASA_PREHEAT_HOTEND_TEMP 260
 #define ASA_PREHEAT_HPB_TEMP 105
 
 #define PC_PREHEAT_HOTEND_TEMP 275
 #define PC_PREHEAT_HPB_TEMP 105
-
-#define PA_PREHEAT_HOTEND_TEMP 275
-#define PA_PREHEAT_HPB_TEMP 90
 
 #define ABS_PREHEAT_HOTEND_TEMP 255
 #define ABS_PREHEAT_HPB_TEMP 100
@@ -491,6 +499,13 @@
 #define PINDA_STEP_T 10
 #define PINDA_MAX_T 100
 
+#define PING_TIME 60 //time in s
+#define PING_TIME_LONG 600 //10 min; used when length of commands buffer > 0 to avoid 0 triggering when dealing with long gcodes
+#define PING_ALLERT_PERIOD 60 //time in s
+
+#define NC_TIME 10 //time in s for periodic important status messages sending which needs reponse from monitoring
+#define NC_BUTTON_LONG_PRESS 15 //time in s
+
 #define LONG_PRESS_TIME 1000 //time in ms for button long press
 #define BUTTON_BLANKING_TIME 200 //time in ms for blanking after button release
 
@@ -503,35 +518,18 @@
 
 //#define SUPPORT_VERBOSITY
 
-#define MMU_CONFIG_FILE "mmu2/variants/config_MMU2.h"
-
-#define MMU_FILAMENT_COUNT 5
-
 #define MMU_REQUIRED_FW_BUILDNR 132
 #define MMU_FORCE_STEALTH_MODE
 #define MMU_DEBUG //print communication between MMU2 and printer on serial
 #define MMU_HAS_CUTTER
 
+// This is experimental feature requested by our test department.
+// There is no known use for ordinary user. If enabled by this macro
+// and enabled from printer menu (not enabled by default). It cuts filament
+// every time when switching filament from gcode. MMU_HAS_CUTTER needs to be
+// defined.
+
+//#define MMU_ALWAYS_CUT
 #define MMU_IDLER_SENSOR_ATTEMPTS_NR 21 //max. number of attempts to load filament if first load failed; value for max bowden length and case when loading fails right at the beginning
-
-// MMU Error pause position
-#define MMU_ERR_X_PAUSE_POS 125
-#define MMU_ERR_Y_PAUSE_POS 0
-#define MMU_ERR_Z_PAUSE_LIFT 20
-
-//#define HEATBED_ANALYSIS //for meash bed leveling and heatbed analysis D-codes D80 and D81
-//#define MICROMETER_LOGGING //related to D-codes D80 and D81, currently works on MK2.5 only (MK3 board pin definitions missing)
-
-// Default Arc Interpolation Settings (Now configurable via M214)
-#define DEFAULT_N_ARC_CORRECTION       25 // Number of interpolated segments between corrections.
-/* A value of 1 or less for N_ARC_CORRECTION will trigger the use of Sin and Cos for every arc, which will improve accuracy at the
-   cost of performance*/
-#define DEFAULT_MM_PER_ARC_SEGMENT     1.0f // REQUIRED - The enforced maximum length of an arc segment
-#define DEFAULT_MIN_MM_PER_ARC_SEGMENT 0.5f //the enforced minimum length of an interpolated segment
-   /*  MIN_MM_PER_ARC_SEGMENT Must be smaller than MM_PER_ARC_SEGMENT.  Only has an effect if MIN_ARC_SEGMENTS > 0
-       or ARC_SEGMENTS_PER_SEC > 0 .  If both MIN_ARC_SEGMENTS and ARC_SEGMENTS_PER_SEC is defined, the minimum
-       calculated segment length is used. */
-#define DEFAULT_MIN_ARC_SEGMENTS 20 // The enforced minimum segments in a full circle of the same radius.  Set to 0 to disable
-#define DEFAULT_ARC_SEGMENTS_PER_SEC 0 // Use feedrate to choose segment length. Set to 0 to disable
 
 #endif //__CONFIGURATION_PRUSA_H
