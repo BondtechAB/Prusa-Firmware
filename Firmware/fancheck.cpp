@@ -280,11 +280,18 @@ void checkFans()
 #endif //DEBUG_DISABLE_FANCHECK
 }
 
+void resetFanCheck() {
+    fan_measuring = false;
+    extruder_autofan_last_check = _millis();
+}
+
+
 void hotendFanSetFullSpeed()
 {
 #ifdef EXTRUDER_ALTFAN_DETECT
     altfanStatus.altfanOverride = 1; //full speed
 #endif //EXTRUDER_ALTFAN_DETECT
+    resetFanCheck();
     setExtruderAutoFanState(3);
     SET_OUTPUT(FAN_PIN);
 #ifdef FAN_SOFT_PWM
@@ -293,4 +300,15 @@ void hotendFanSetFullSpeed()
     analogWrite(FAN_PIN, 255);
 #endif //FAN_SOFT_PWM
     fanSpeed = 255;
+}
+
+void hotendDefaultAutoFanState()
+{
+#if (defined(EXTRUDER_0_AUTO_FAN_PIN) && EXTRUDER_0_AUTO_FAN_PIN > -1)
+#ifdef EXTRUDER_ALTFAN_DETECT
+    altfanStatus.altfanOverride = eeprom_read_byte((uint8_t*)EEPROM_ALTFAN_OVERRIDE);
+#endif
+    resetFanCheck();
+    setExtruderAutoFanState(1);
+#endif
 }

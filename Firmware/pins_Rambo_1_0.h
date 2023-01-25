@@ -15,6 +15,8 @@
 #define SWI2C_SCL      84 //PH2 on P3, sensor cable must be rewired
 
 
+#define WATCHDOG_SOFT_RESET_VALUE WDTO_2S
+
 
 #define X_STEP_PIN             37
 #define X_DIR_PIN              48

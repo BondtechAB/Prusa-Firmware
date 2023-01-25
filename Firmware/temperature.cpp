@@ -32,7 +32,7 @@
 #include "stepper.h"
 #include "ultralcd.h"
 #include "menu.h"
-#include "sound.h"
+#include "util.h"
 #include "fancheck.h"
 #include "messages.h"
 #include "language.h"

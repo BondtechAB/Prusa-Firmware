@@ -76,9 +76,12 @@ int16_t mmu_version = -1;
 
 int16_t mmu_buildnr = -1;
 
-LongTimer mmu_last_request;
-LongTimer mmu_last_response;
-LongTimer mmu_last_finda_response;
+uint32_t mmu_last_request;
+uint32_t mmu_last_response;
+uint32_t mmu_last_finda_response;
+//LongTimer mmu_last_request;
+//LongTimer mmu_last_response;
+//LongTimer mmu_last_finda_response;
 
 MmuCmd mmu_last_cmd = MmuCmd::None;
 uint16_t mmu_power_failures = 0;
@@ -114,7 +117,8 @@ int mmu_puts_P(const char* str)
 {
 	mmu_clr_rx_buf();                          //clear rx buffer
     int r = fputs_P(str, uart2io);             //send command
-	mmu_last_request.start();
+	mmu_last_request = _millis();
+	//mmu_last_request.start();
 	return r;
 }
 
@@ -126,7 +130,8 @@ int mmu_printf_P(const char* format, ...)
 	mmu_clr_rx_buf();                          //clear rx buffer
 	int r = vfprintf_P(uart2io, format, args); //send command
 	va_end(args);
-	mmu_last_request.start();
+	mmu_last_request = _millis();
+	//mmu_last_request.start();
 	return r;
 }
 
@@ -134,7 +139,8 @@ int mmu_printf_P(const char* format, ...)
 int8_t mmu_rx_ok(void)
 {
 	int8_t res = uart2_rx_str_P(PSTR("ok\n"));
-	if (res == 1) mmu_last_response.start();
+	if (res == 1) mmu_last_response = _millis();
+	//if (res == 1) mmu_last_response.start();
 	return res;
 }
 
@@ -142,7 +148,8 @@ int8_t mmu_rx_ok(void)
 int8_t mmu_rx_start(void)
 {
 	int8_t res = uart2_rx_str_P(PSTR("start\n"));
-	if (res == 1) mmu_last_response.start();
+	if (res == 1) mmu_last_response = _millis();
+	//if (res == 1) mmu_last_response.start();
 	return res;
 }
 
@@ -266,7 +273,8 @@ void mmu_loop(void)
 		if (mmu_rx_ok() > 0)
 		{
 			fscanf_P(uart2io, PSTR("%hhu"), &mmu_finda); //scan finda from buffer. MUST BE %hhu!!!
-			mmu_last_finda_response.start();
+			mmu_last_finda_response = _millis();
+			//mmu_last_finda_response.start();
 			FDEBUG_PRINTF_P(PSTR("MMU => '%dok'\n"), mmu_finda);
 			puts_P(PSTR("MMU - ENABLED"));
 			mmu_enabled = true;
@@ -351,7 +359,8 @@ void mmu_loop(void)
 				mmu_printf_P(PSTR("M%d\n"), SilentModeMenu_MMU);
 				mmu_state = S::SwitchMode;
 		}
-		else if (mmu_last_response.expired(300)) //request every 300ms
+		else if ((mmu_last_response + 300) < _millis()) //request every 300ms
+
 		{
 #ifndef IR_SENSOR
 			if(check_for_ir_sensor()) ir_sensor_detected = true;
@@ -379,7 +388,8 @@ void mmu_loop(void)
 		if (mmu_rx_ok() > 0)
 		{
 			fscanf_P(uart2io, PSTR("%hhu"), &mmu_finda); //scan finda from buffer. MUST BE %hhu!!!
-			mmu_last_finda_response.start();
+			mmu_last_finda_response = _millis();
+			//mmu_last_finda_response.start();
 			FDEBUG_PRINTF_P(PSTR("MMU => '%dok'\n"), mmu_finda);
 			//printf_P(PSTR("Eact: %d\n"), int(e_active()));
 			if (!mmu_finda && CHECK_FSENSOR && fsensor_enabled) {
@@ -399,7 +409,8 @@ void mmu_loop(void)
 			if (mmu_cmd == MmuCmd::None)
 				mmu_ready = true;
 		}
-		else if (mmu_last_request.expired(MMU_P0_TIMEOUT))
+		else if ((mmu_last_request + MMU_P0_TIMEOUT) < _millis())
+		//else if (mmu_last_request.expired(MMU_P0_TIMEOUT))
 		{ //resend request after timeout (30s)
 			mmu_state = S::Idle;
 		}
@@ -425,7 +436,8 @@ void mmu_loop(void)
 			mmu_ready = true;
 			mmu_state = S::Idle;
 		}
-		else if (mmu_last_request.expired(MMU_CMD_TIMEOUT))
+		else if ((mmu_last_request + MMU_CMD_TIMEOUT) < _millis())
+		//else if (mmu_last_request.expired(MMU_CMD_TIMEOUT))
 		{ //resend request after timeout (5 min)
 			if (mmu_last_cmd != MmuCmd::None)
 			{
@@ -468,7 +480,8 @@ void mmu_loop(void)
 			mmu_ready = true;
 			mmu_state = S::Idle;
 		}
-		else if (mmu_last_request.expired(MMU_CMD_TIMEOUT))
+		else if ((mmu_last_request + MMU_CMD_TIMEOUT) < _millis())
+		//else if (mmu_last_request.expired(MMU_CMD_TIMEOUT))
 		{ //timeout 45 s
 			mmu_state = S::Idle;
 		}
@@ -480,7 +493,8 @@ void mmu_loop(void)
 			eeprom_update_byte((uint8_t*)EEPROM_MMU_STEALTH, SilentModeMenu_MMU);
 			mmu_state = S::Idle;
 		}
-		else if (mmu_last_request.expired(MMU_CMD_TIMEOUT))
+		else if ((mmu_last_request + MMU_CMD_TIMEOUT) < _millis())
+		//else if (mmu_last_request.expired(MMU_CMD_TIMEOUT))
 		{ //timeout 45 s
 			mmu_state = S::Idle;
 		}

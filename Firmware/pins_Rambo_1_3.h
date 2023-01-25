@@ -18,6 +18,8 @@
 #endif //MICROMETER_LOGGING
 
 
+#define WATCHDOG_SOFT_RESET_VALUE WDTO_2S
+
 
 #define X_STEP_PIN             37
 #define X_DIR_PIN              48
