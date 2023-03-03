@@ -17,7 +17,6 @@
 // This should be long enough to safely exit the bootloader when it uses the default timeout (~1-2s)
 #define WATCHDOG_SOFT_RESET_VALUE WDTO_2S
 
-#define WATCHDOG_SOFT_RESET_VALUE WDTO_2S
 
 
 #define X_STEP_PIN             37
