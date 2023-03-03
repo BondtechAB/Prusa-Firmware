@@ -714,6 +714,7 @@ void watchdogEarlyDisable(void) {
       wdt_disable();
     }
 }
+
 void softReset(void) {
     cli();
 #ifdef WATCHDOG
@@ -4318,9 +4319,9 @@ void process_commands()
             boot_app_flags = BOOT_APP_FLG_RUN;
 #endif //defined(XFLASH) && defined(BOOTAPP)
             softReset();
-        }
+    }
 #ifdef PRUSA_SN_SUPPORT
-	else if (code_seen_P(PSTR("SN"))) { // PRUSA SN
+    else if (code_seen_P(PSTR("SN"))) { // PRUSA SN
         char SN[20];
         eeprom_read_block(SN, (uint8_t*)EEPROM_PRUSA_SN, 20);
         if (SN[19])
@@ -7584,7 +7585,8 @@ Sigma_Exit:
         M310 [ A ] [ F ]                               ; autotune
         M310 [ S ]                                     ; set 0=disable 1=enable
         M310 [ I ] [ R ]                               ; set resistance at index
-        M310 [ P | C ]                                 ; set power, capacitance
+        M310 [ P | U | V | C ]                         ; set power, temperature coefficient, intercept, capacitance
+        M310 [ D | L ]                                 ; set simulation filter, lag
         M310 [ B | E | W ]                             ; set beeper, warning and error threshold
         M310 [ T ]                                     ; set ambient temperature correction
 
@@ -7592,7 +7594,11 @@ Sigma_Exit:
     - `I` - resistance index position (0-15)
     - `R` - resistance value at index (K/W; requires `I`)
     - `P` - power (W)
+    - `U` - linear temperature coefficient (W/K/power)
+    - `V` - linear temperature intercept (W/power)
     - `C` - capacitance (J/K)
+    - `D` - sim. 1st order IIR filter factor (f=100/27)
+    - `L` - sim. response lag (ms, 0-2160)
     - `S` - set 0=disable 1=enable
     - `B` - beep and warn when reaching warning threshold 0=disable 1=enable (default: 1)
     - `E` - error threshold (K/s; default in variant)
@@ -7604,30 +7610,39 @@ Sigma_Exit:
     case 310:
     {
         // parse all parameters
-        float P = NAN, C = NAN, R = NAN, E = NAN, W = NAN, T = NAN;
-        int8_t I = -1, S = -1, B = -1, A = -1, F = -1;
-        if(code_seen('C')) C = code_value();
-        if(code_seen('P')) P = code_value();
+        float R = NAN, P = NAN, U = NAN, V = NAN, C = NAN, D = NAN, T = NAN, W = NAN, E = NAN;
+        int8_t I = -1, S = -1, B = -1, F = -1;
+        int16_t A = -1, L = -1;
         if(code_seen('I')) I = code_value_short();
         if(code_seen('R')) R = code_value();
+        if(code_seen('P')) P = code_value();
+        if(code_seen('U')) U = code_value();
+        if(code_seen('V')) V = code_value();
+        if(code_seen('C')) C = code_value();
+        if(code_seen('D')) D = code_value();
+        if(code_seen('L')) L = code_value_short();
         if(code_seen('S')) S = code_value_short();
         if(code_seen('B')) B = code_value_short();
+        if(code_seen('T')) T = code_value();
         if(code_seen('E')) E = code_value();
         if(code_seen('W')) W = code_value();
-        if(code_seen('T')) T = code_value();
         if(code_seen('A')) A = code_value_short();
         if(code_seen('F')) F = code_value_short();
 
         // report values if nothing has been requested
-        if(isnan(C) && isnan(P) && isnan(R) && isnan(E) && isnan(W) && isnan(T) && I < 0 && S < 0 && B < 0 && A < 0) {
+        if(isnan(R) && isnan(P) && isnan(U) && isnan(V) && isnan(C) && isnan(D) && isnan(T) && isnan(W) && isnan(E)
+        && I < 0 && S < 0 && B < 0 && A < 0 && L < 0) {
             temp_model_report_settings();
             break;
         }
 
         // update all parameters
-        if(B >= 0) temp_model_set_warn_beep(B);
-        if(!isnan(C) || !isnan(P) || !isnan(T) || !isnan(W) || !isnan(E)) temp_model_set_params(C, P, T, W, E);
-        if(I >= 0 && !isnan(R)) temp_model_set_resistance(I, R);
+        if(B >= 0)
+            temp_model_set_warn_beep(B);
+        if(!isnan(P) || !isnan(U) || !isnan(V) || !isnan(C) || !isnan(D) || (L >= 0) || !isnan(T) || !isnan(W) || !isnan(E))
+            temp_model_set_params(P, U, V, C, D, L, T, W, E);
+        if(I >= 0 && !isnan(R))
+            temp_model_set_resistance(I, R);
 
         // enable the model last, if requested
         if(S >= 0) temp_model_set_enabled(S);
@@ -9764,6 +9779,8 @@ void ThermalStop(bool allow_recovery)
 {
     if(Stopped == false) {
         Stopped = true;
+
+        // Either pause or stop the print
         if(allow_recovery && (IS_SD_PRINTING || usb_timer.running())) {
             if (!isPrintPaused) {
                 lcd_setalertstatuspgm(_T(MSG_PAUSED_THERMAL_ERROR), LCD_STATUS_CRITICAL);
@@ -9786,8 +9803,8 @@ void ThermalStop(bool allow_recovery)
             print_stop();
         }
 
-        // Report the status on the serial, switch to a busy state
-        SERIAL_ERROR_START;
+        // Report the error on the serial
+        serialprintPGM(allow_recovery ? echomagic : errormagic);
         SERIAL_ERRORLNRPGM(MSG_ERR_STOPPED);
 
         // Eventually report the stopped status on the lcd (though this is usually overridden by a

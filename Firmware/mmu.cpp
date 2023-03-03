@@ -208,12 +208,12 @@ static bool activate_stealth_mode()
 void mmu_loop(void)
 {
 	static uint8_t mmu_attempt_nr = 0;
-//	printf_P(PSTR("MMU loop, state=%d\n"), mmu_state);
+//	printf_P(PSTR("MMU loop, state=%d\n"), (int)mmu_state);
 	switch (mmu_state)
 	{
-	case S::Disabled:
+	case S::Disabled: //state 0
 		return;
-	case S::Init:
+	case S::Init: //state 1
 		if (mmu_rx_start() > 0)
 		{
 		    DEBUG_PUTS_P(PSTR("MMU => 'start'"));
@@ -227,7 +227,7 @@ void mmu_loop(void)
 			mmu_state = S::Disabled;
 		}
 		return;
-	case S::GetVersion:
+	case S::GetVersion: //state 2
 		if (mmu_rx_ok() > 0)
 		{
 			fscanf_P(uart2io, PSTR("%u"), &mmu_version); //scan version from buffer
@@ -237,7 +237,7 @@ void mmu_loop(void)
 			mmu_state = S::GetBuildNr;
 		}
 		return;
-	case S::GetBuildNr:
+	case S::GetBuildNr: //state 3
 		if (mmu_rx_ok() > 0)
 		{
 			fscanf_P(uart2io, PSTR("%u"), &mmu_buildnr); //scan buildnr from buffer
@@ -261,7 +261,7 @@ void mmu_loop(void)
 
 		}
 		return;
-	case S::WaitStealthMode:
+	case S::WaitStealthMode: //state 4
 		if (mmu_rx_ok() > 0)
 		{
 			FDEBUG_PUTS_P(PSTR("MMU <= 'P0'"));
@@ -269,7 +269,7 @@ void mmu_loop(void)
 			mmu_state = S::GetFindaInit;
 		}
 		return;
-	case S::GetFindaInit:
+	case S::GetFindaInit: //state 5
 		if (mmu_rx_ok() > 0)
 		{
 			fscanf_P(uart2io, PSTR("%hhu"), &mmu_finda); //scan finda from buffer. MUST BE %hhu!!!
@@ -284,7 +284,7 @@ void mmu_loop(void)
 			mmu_state = S::Idle;
 		}
 		return;
-	case S::Idle:
+	case S::Idle: //state 6
 		if (mmu_cmd != MmuCmd::None) //command request ?
 		{
 			if ((mmu_cmd >= MmuCmd::T0) && (mmu_cmd <= MmuCmd::T4))
@@ -360,7 +360,7 @@ void mmu_loop(void)
 				mmu_state = S::SwitchMode;
 		}
 		else if ((mmu_last_response + 300) < _millis()) //request every 300ms
-
+		//else if (mmu_last_response.expired(300)) //request every 300ms
 		{
 #ifndef IR_SENSOR
 			if(check_for_ir_sensor()) ir_sensor_detected = true;
@@ -369,8 +369,11 @@ void mmu_loop(void)
 		    mmu_puts_P(PSTR("P0\n")); //send 'read finda' request
 			mmu_state = S::GetFinda;
 		}
+		//printf_P(PSTR("MMU loop, state %d\n"), (int)mmu_state);
+		//printf_P(PSTR("mmu_last_response %lu\n"), mmu_last_response.elapsed());
+		//printf_P(PSTR("mmu_last_finda_response %lu\n"), mmu_last_finda_response.elapsed());
 		return;
-	case S::GetFinda: //response to command P0
+	case S::GetFinda: //response to command P0 state 7
         if (mmu_idl_sens)
         {
             if (READ(IR_SENSOR_PIN) == 0 && mmu_loading_flag)
@@ -415,7 +418,7 @@ void mmu_loop(void)
 			mmu_state = S::Idle;
 		}
 		return;
-	case S::WaitCmd: //response to mmu commands
+	case S::WaitCmd: //response to mmu commands state 8
         if (mmu_idl_sens)
         {
             if (READ(IR_SENSOR_PIN) == 0 && mmu_loading_flag)
@@ -456,7 +459,7 @@ void mmu_loop(void)
 			mmu_state = S::Idle;
 		}
 		return;
-	case S::Pause:
+	case S::Pause: //state 9
         if (mmu_rx_ok() > 0)
         {
             DEBUG_PRINTF_P(PSTR("MMU => 'ok', resume print\n"));
@@ -471,7 +474,7 @@ void mmu_loop(void)
             mmu_state = S::Idle;
         }
 	    return;
-	case S::GetDrvError:
+	case S::GetDrvError: //state 10
 		if (mmu_rx_ok() > 0)
 		{
 			fscanf_P(uart2io, PSTR("%d"), &mmu_power_failures); //scan power failures
@@ -486,7 +489,7 @@ void mmu_loop(void)
 			mmu_state = S::Idle;
 		}
 		return;
-	case S::SwitchMode:
+	case S::SwitchMode: //state 11
 		if (mmu_rx_ok() > 0)
 		{
 			DEBUG_PRINTF_P(PSTR("MMU => 'ok'\n"));
@@ -738,6 +741,7 @@ void manage_response(bool move_axes, bool turn_off_nozzle, uint8_t move)
 				  screen++;
 			  }
 			  else {  //screen 1
+			      //printf_P(PSTR("active ex: %d deg: %d turn_off_nozzle: %d\n"),active_extruder ,degTargetHotend(active_extruder), (int)turn_off_nozzle);
 				  if((degTargetHotend(active_extruder) == 0) && turn_off_nozzle) lcd_display_message_fullscreen_P(_i("Press the knob to resume nozzle temperature."));////MSG_RESUME_NOZZLE_TEMP c=20 r=4
 				  else lcd_display_message_fullscreen_P(_i("Fix the issue and then press button on MMU unit."));////MSG_MMU_FIX_ISSUE c=20 r=4
 				  screen=0;
