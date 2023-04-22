@@ -19,7 +19,7 @@
 #define DEVELOPER
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "LGX-SM MK3S"
+#define CUSTOM_MENDEL_NAME "LGX-SM TAS"
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
