@@ -1,0 +1,63 @@
+.TH "tm" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+tm \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "\fBint8_t\fP \fBtm_sec\fP"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBtm_min\fP"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBtm_hour\fP"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBtm_mday\fP"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBtm_wday\fP"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBtm_mon\fP"
+.br
+.ti -1c
+.RI "\fBint16_t\fP \fBtm_year\fP"
+.br
+.ti -1c
+.RI "\fBint16_t\fP \fBtm_yday\fP"
+.br
+.ti -1c
+.RI "\fBint16_t\fP \fBtm_isdst\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+The tm structure contains a representation of time 'broken down' into components of the Gregorian calendar.
+.PP
+The value of tm_isdst is zero if Daylight Saving Time is not in effect, and is negative if the information is not available.
+.PP
+When Daylight Saving Time is in effect, the value represents the number of seconds the clock is advanced.
+.PP
+See the \fBset_dst()\fP function for more information about Daylight Saving. 
+.SH "Field Documentation"
+.PP 
+.SS "\fBint8_t\fP \fBtm::tm_hour\fP"hours since midnight - [ 0 to 23 ] 
+.SS "\fBint16_t\fP \fBtm::tm_isdst\fP"Daylight Saving Time flag 
+.SS "\fBint8_t\fP \fBtm::tm_mday\fP"day of the month - [ 1 to 31 ] 
+.SS "\fBint8_t\fP \fBtm::tm_min\fP"minutes after the hour - [ 0 to 59 ] 
+.SS "\fBint8_t\fP \fBtm::tm_mon\fP"months since January - [ 0 to 11 ] 
+.SS "\fBint8_t\fP \fBtm::tm_sec\fP"seconds after the minute - [ 0 to 59 ] 
+.SS "\fBint8_t\fP \fBtm::tm_wday\fP"days since Sunday - [ 0 to 6 ] 
+.SS "\fBint16_t\fP \fBtm::tm_yday\fP"days since January 1 - [ 0 to 365 ] 
+.SS "\fBint16_t\fP \fBtm::tm_year\fP"years since 1900 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.

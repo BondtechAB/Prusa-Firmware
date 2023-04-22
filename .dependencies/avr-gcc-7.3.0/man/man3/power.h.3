@@ -1,0 +1,41 @@
+.TH "power.h" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+power.h \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBclock_prescale_get\fP()   (clock_div_t)(CLKPR & (\fBuint8_t\fP)((1<<CLKPS0)|(1<<CLKPS1)|(1<<CLKPS2)|(1<<CLKPS3)))"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "static __inline void \fB__attribute__\fP ((__always_inline__)) __power_all_enable()"
+.br
+.ti -1c
+.RI "void \fBclock_prescale_set\fP (clock_div_t __x)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Define Documentation"
+.PP 
+.SS "#define clock_prescale_get()   (clock_div_t)(CLKPR & (\fBuint8_t\fP)((1<<CLKPS0)|(1<<CLKPS1)|(1<<CLKPS2)|(1<<CLKPS3)))"Gets and returns the clock prescaler register setting. The return type is \fCclock_div_t\fP.
+.PP
+\fBNote:\fP
+.RS 4
+For device with XTAL Divide Control Register (XDIV), return can actually range from 1 to 129. Care should be taken has the return value could differ from the typedef enum clock_div_t. This should only happen if clock_prescale_set was previously called with a value other than those defined by \fCclock_div_t\fP. 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.

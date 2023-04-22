@@ -1,0 +1,276 @@
+.TH "<avr/power.h>: Power Reduction Management" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+<avr/power.h>: Power Reduction Management \- 
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "void \fBclock_prescale_set\fP (clock_div_t __x)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+.PP
+.nf
+ #include <avr/power.h>
+.fi
+.PP
+.PP
+Many AVRs contain a Power Reduction Register (PRR) or Registers (PRRx) that allow you to reduce power consumption by disabling or enabling various on-board peripherals as needed. Some devices have the XTAL Divide Control Register (XDIV) which offer similar functionality as System Clock Prescale Register (CLKPR).
+.PP
+There are many macros in this header file that provide an easy interface to enable or disable on-board peripherals to reduce power. See the table below.
+.PP
+\fBNote:\fP
+.RS 4
+Not all AVR devices have a Power Reduction Register (for example the ATmega8). On those devices without a Power Reduction Register, the power reduction macros are not available..
+.PP
+Not all AVR devices contain the same peripherals (for example, the LCD interface), or they will be named differently (for example, USART and USART0). Please consult your device's datasheet, or the header file, to find out which macros are applicable to your device.
+.PP
+For device using the XTAL Divide Control Register (XDIV), when prescaler is used, Timer/Counter0 can only be used in asynchronous mode. Keep in mind that Timer/Counter0 source shall be less than ¼th of peripheral clock. Therefore, when using a typical 32.768 kHz crystal, one shall not scale the clock below 131.072 kHz.
+.RE
+.PP
+   \fBPower Macro\fP \fBDescription\fP 
+.PP
+power_aca_disable() Disable the Analog Comparator on PortA. 
+.PP
+power_aca_enable() Enable the Analog Comparator on PortA. 
+.PP
+power_adc_enable() Enable the Analog to Digital Converter module. 
+.PP
+power_adc_disable() Disable the Analog to Digital Converter module. 
+.PP
+power_adca_disable() Disable the Analog to Digital Converter module on PortA 
+.PP
+power_adca_enable() Enable the Analog to Digital Converter module on PortA 
+.PP
+power_evsys_disable() Disable the EVSYS module 
+.PP
+power_evsys_enable() Enable the EVSYS module 
+.PP
+power_hiresc_disable() Disable the HIRES module on PortC 
+.PP
+power_hiresc_enable() Enable the HIRES module on PortC 
+.PP
+power_lcd_enable() Enable the LCD module. 
+.PP
+power_lcd_disable(). Disable the LCD module. 
+.PP
+power_pga_enable() Enable the Programmable Gain Amplifier module. 
+.PP
+power_pga_disable() Disable the Programmable Gain Amplifier module. 
+.PP
+power_pscr_enable() Enable the Reduced Power Stage Controller module. 
+.PP
+power_pscr_disable() Disable the Reduced Power Stage Controller module. 
+.PP
+power_psc0_enable() Enable the Power Stage Controller 0 module. 
+.PP
+power_psc0_disable() Disable the Power Stage Controller 0 module. 
+.PP
+power_psc1_enable() Enable the Power Stage Controller 1 module. 
+.PP
+power_psc1_disable() Disable the Power Stage Controller 1 module. 
+.PP
+power_psc2_enable() Enable the Power Stage Controller 2 module. 
+.PP
+power_psc2_disable() Disable the Power Stage Controller 2 module. 
+.PP
+power_ram0_enable() Enable the SRAM block 0 . 
+.PP
+power_ram0_disable() Disable the SRAM block 0.  
+.PP
+power_ram1_enable() Enable the SRAM block 1 . 
+.PP
+power_ram1_disable() Disable the SRAM block 1.  
+.PP
+power_ram2_enable() Enable the SRAM block 2 . 
+.PP
+power_ram2_disable() Disable the SRAM block 2.  
+.PP
+power_ram3_enable() Enable the SRAM block 3 . 
+.PP
+power_ram3_disable() Disable the SRAM block 3.  
+.PP
+power_rtc_disable() Disable the RTC module 
+.PP
+power_rtc_enable() Enable the RTC module 
+.PP
+power_spi_enable() Enable the Serial Peripheral Interface module. 
+.PP
+power_spi_disable() Disable the Serial Peripheral Interface module. 
+.PP
+power_spic_disable() Disable the SPI module on PortC 
+.PP
+power_spic_enable() Enable the SPI module on PortC 
+.PP
+power_spid_disable() Disable the SPI module on PortD 
+.PP
+power_spid_enable() Enable the SPI module on PortD 
+.PP
+power_tc0c_disable() Disable the TC0 module on PortC 
+.PP
+power_tc0c_enable() Enable the TC0 module on PortC 
+.PP
+power_tc0d_disable() Disable the TC0 module on PortD 
+.PP
+power_tc0d_enable() Enable the TC0 module on PortD 
+.PP
+power_tc0e_disable() Disable the TC0 module on PortE 
+.PP
+power_tc0e_enable() Enable the TC0 module on PortE 
+.PP
+power_tc0f_disable() Disable the TC0 module on PortF 
+.PP
+power_tc0f_enable() Enable the TC0 module on PortF 
+.PP
+power_tc1c_disable() Disable the TC1 module on PortC 
+.PP
+power_tc1c_enable() Enable the TC1 module on PortC 
+.PP
+power_twic_disable() Disable the Two Wire Interface module on PortC 
+.PP
+power_twic_enable() Enable the Two Wire Interface module on PortC 
+.PP
+power_twie_disable() Disable the Two Wire Interface module on PortE 
+.PP
+power_twie_enable() Enable the Two Wire Interface module on PortE 
+.PP
+power_timer0_enable() Enable the Timer 0 module. 
+.PP
+power_timer0_disable() Disable the Timer 0 module. 
+.PP
+power_timer1_enable() Enable the Timer 1 module. 
+.PP
+power_timer1_disable() Disable the Timer 1 module. 
+.PP
+power_timer2_enable() Enable the Timer 2 module. 
+.PP
+power_timer2_disable() Disable the Timer 2 module. 
+.PP
+power_timer3_enable() Enable the Timer 3 module. 
+.PP
+power_timer3_disable() Disable the Timer 3 module. 
+.PP
+power_timer4_enable() Enable the Timer 4 module. 
+.PP
+power_timer4_disable() Disable the Timer 4 module. 
+.PP
+power_timer5_enable() Enable the Timer 5 module. 
+.PP
+power_timer5_disable() Disable the Timer 5 module. 
+.PP
+power_twi_enable() Enable the Two Wire Interface module. 
+.PP
+power_twi_disable() Disable the Two Wire Interface module. 
+.PP
+power_usart_enable() Enable the USART module. 
+.PP
+power_usart_disable() Disable the USART module. 
+.PP
+power_usart0_enable() Enable the USART 0 module. 
+.PP
+power_usart0_disable() Disable the USART 0 module. 
+.PP
+power_usart1_enable() Enable the USART 1 module. 
+.PP
+power_usart1_disable() Disable the USART 1 module. 
+.PP
+power_usart2_enable() Enable the USART 2 module. 
+.PP
+power_usart2_disable() Disable the USART 2 module. 
+.PP
+power_usart3_enable() Enable the USART 3 module. 
+.PP
+power_usart3_disable() Disable the USART 3 module. 
+.PP
+power_usartc0_disable() Disable the USART0 module on PortC 
+.PP
+power_usartc0_enable() Enable the USART0 module on PortC 
+.PP
+power_usartd0_disable() Disable the USART0 module on PortD 
+.PP
+power_usartd0_enable() Enable the USART0 module on PortD 
+.PP
+power_usarte0_disable() Disable the USART0 module on PortE 
+.PP
+power_usarte0_enable() Enable the USART0 module on PortE 
+.PP
+power_usartf0_disable() Disable the USART0 module on PortF 
+.PP
+power_usartf0_enable() Enable the USART0 module on PortF 
+.PP
+power_usb_enable() Enable the USB module. 
+.PP
+power_usb_disable() Disable the USB module. 
+.PP
+power_usi_enable() Enable the Universal Serial Interface module. 
+.PP
+power_usi_disable() Disable the Universal Serial Interface module. 
+.PP
+power_vadc_enable() Enable the Voltage ADC module. 
+.PP
+power_vadc_disable() Disable the Voltage ADC module. 
+.PP
+power_all_enable() Enable all modules. 
+.PP
+power_all_disable() Disable all modules.   
+.PP
+Some of the newer AVRs contain a System Clock Prescale Register (CLKPR) that allows you to decrease the system clock frequency and the power consumption when the need for processing power is low. On some earlier AVRs (ATmega103, ATmega64, ATmega128), similar functionality can be achieved through the XTAL Divide Control Register. Below are two macros and an enumerated type that can be used to interface to the Clock Prescale Register or XTAL Divide Control Register.
+.PP
+\fBNote:\fP
+.RS 4
+Not all AVR devices have a clock prescaler. On those devices without a Clock Prescale Register or XTAL Divide Control Register, these macros are not available.
+.RE
+.PP
+.PP
+.nf
+typedef enum
+{
+    clock_div_1 = 0,
+    clock_div_2 = 1,
+    clock_div_4 = 2,
+    clock_div_8 = 3,
+    clock_div_16 = 4,
+    clock_div_32 = 5,
+    clock_div_64 = 6,
+    clock_div_128 = 7,
+    clock_div_256 = 8,
+    clock_div_1_rc = 15, // ATmega128RFA1 only
+} clock_div_t;
+.fi
+.PP
+ Clock prescaler setting enumerations for device using System Clock Prescale Register.
+.PP
+.PP
+.nf
+typedef enum
+{
+    clock_div_1 = 1,
+    clock_div_2 = 2,
+    clock_div_4 = 4,
+    clock_div_8 = 8,
+    clock_div_16 = 16,
+    clock_div_32 = 32,
+    clock_div_64 = 64,
+    clock_div_128 = 128
+} clock_div_t;
+.fi
+.PP
+ Clock prescaler setting enumerations for device using XTAL Divide Control Register. 
+.SH "Function Documentation"
+.PP 
+.SS "clock_prescale_set (clock_div_t x)"Set the clock prescaler register select bits, selecting a system clock division setting. This function is inlined, even if compiler optimizations are disabled.
+.PP
+The type of \fCx\fP is \fCclock_div_t\fP.
+.PP
+\fBNote:\fP
+.RS 4
+For device with XTAL Divide Control Register (XDIV), \fCx\fP can actually range from 1 to 129. Thus, one does not need to use \fCclock_div_t\fP type as argument. 
+.RE
+.PP
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.

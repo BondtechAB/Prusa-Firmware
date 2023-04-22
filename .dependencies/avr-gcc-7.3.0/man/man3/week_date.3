@@ -1,0 +1,33 @@
+.TH "week_date" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+week_date \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Data Fields"
+
+.in +1c
+.ti -1c
+.RI "int \fByear\fP"
+.br
+.ti -1c
+.RI "int \fBweek\fP"
+.br
+.ti -1c
+.RI "int \fBday\fP"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+Structure which represents a date as a year, week number of that year, and day of week. See http://en.wikipedia.org/wiki/ISO_week_date for more information. 
+.SH "Field Documentation"
+.PP 
+.SS "int \fBweek_date::day\fP"day within week 
+.SS "int \fBweek_date::week\fP"week number (#1 is where first Thursday is in) 
+.SS "int \fBweek_date::year\fP"year number (Gregorian calendar) 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.

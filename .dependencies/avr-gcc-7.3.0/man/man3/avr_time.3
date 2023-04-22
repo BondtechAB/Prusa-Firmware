@@ -1,0 +1,381 @@
+.TH "<time.h>: Time" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+<time.h>: Time \- 
+.SS "Data Structures"
+
+.in +1c
+.ti -1c
+.RI "struct \fBtm\fP"
+.br
+.ti -1c
+.RI "struct \fBweek_date\fP"
+.br
+.in -1c
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBONE_HOUR\fP   3600"
+.br
+.ti -1c
+.RI "#define \fBONE_DEGREE\fP   3600"
+.br
+.ti -1c
+.RI "#define \fBONE_DAY\fP   86400"
+.br
+.ti -1c
+.RI "#define \fBUNIX_OFFSET\fP   946684800"
+.br
+.ti -1c
+.RI "#define \fBNTP_OFFSET\fP   3155673600"
+.br
+.in -1c
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef \fBuint32_t\fP \fBtime_t\fP"
+.br
+.in -1c
+.SS "Enumerations"
+
+.in +1c
+.ti -1c
+.RI "enum \fB_WEEK_DAYS_\fP { \fBSUNDAY\fP, \fBMONDAY\fP, \fBTUESDAY\fP, \fBWEDNESDAY\fP, \fBTHURSDAY\fP, \fBFRIDAY\fP, \fBSATURDAY\fP }"
+.br
+.ti -1c
+.RI "enum \fB_MONTHS_\fP { \fBJANUARY\fP, \fBFEBRUARY\fP, \fBMARCH\fP, \fBAPRIL\fP, \fBMAY\fP, \fBJUNE\fP, \fBJULY\fP, \fBAUGUST\fP, \fBSEPTEMBER\fP, \fBOCTOBER\fP, \fBNOVEMBER\fP, \fBDECEMBER\fP }"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBtime_t\fP \fBtime\fP (\fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBint32_t\fP \fBdifftime\fP (\fBtime_t\fP time1, \fBtime_t\fP time0)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBmktime\fP (struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBmk_gmtime\fP (const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "struct \fBtm\fP * \fBgmtime\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "void \fBgmtime_r\fP (const \fBtime_t\fP *timer, struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "struct \fBtm\fP * \fBlocaltime\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "void \fBlocaltime_r\fP (const \fBtime_t\fP *timer, struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "char * \fBasctime\fP (const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "void \fBasctime_r\fP (const struct \fBtm\fP *timeptr, char *buf)"
+.br
+.ti -1c
+.RI "char * \fBctime\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "void \fBctime_r\fP (const \fBtime_t\fP *timer, char *buf)"
+.br
+.ti -1c
+.RI "char * \fBisotime\fP (const struct \fBtm\fP *tmptr)"
+.br
+.ti -1c
+.RI "void \fBisotime_r\fP (const struct \fBtm\fP *, char *)"
+.br
+.ti -1c
+.RI "size_t \fBstrftime\fP (char *s, size_t maxsize, const char *format, const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "void \fBset_dst\fP (int(*)(const \fBtime_t\fP *, \fBint32_t\fP *))"
+.br
+.ti -1c
+.RI "void \fBset_zone\fP (\fBint32_t\fP)"
+.br
+.ti -1c
+.RI "void \fBset_system_time\fP (\fBtime_t\fP timestamp)"
+.br
+.ti -1c
+.RI "void \fBsystem_tick\fP (void)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBis_leap_year\fP (\fBint16_t\fP year)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBmonth_length\fP (\fBint16_t\fP year, \fBuint8_t\fP month)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBweek_of_year\fP (const struct \fBtm\fP *timeptr, \fBuint8_t\fP start)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBweek_of_month\fP (const struct \fBtm\fP *timeptr, \fBuint8_t\fP start)"
+.br
+.ti -1c
+.RI "struct \fBweek_date\fP * \fBiso_week_date\fP (int year, int yday)"
+.br
+.ti -1c
+.RI "void \fBiso_week_date_r\fP (int year, int yday, struct \fBweek_date\fP *)"
+.br
+.ti -1c
+.RI "\fBuint32_t\fP \fBfatfs_time\fP (const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "void \fBset_position\fP (\fBint32_t\fP latitude, \fBint32_t\fP longitude)"
+.br
+.ti -1c
+.RI "\fBint16_t\fP \fBequation_of_time\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBint32_t\fP \fBdaylight_seconds\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBsolar_noon\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBsun_rise\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBsun_set\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "double \fBsolar_declination\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBmoon_phase\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "unsigned long \fBgm_sidereal\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "unsigned long \fBlm_sidereal\fP (const \fBtime_t\fP *timer)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+.PP
+.nf
+ #include <time.h> 
+.fi
+.PP
+ 
+.SS "Introduction to the Time functions"
+.PP
+This file declares the time functions implemented in \fCavr-libc\fP.
+.PP
+The implementation aspires to conform with ISO/IEC 9899 (C90). However, due to limitations of the target processor and the nature of its development environment, a practical implementation must of necessity deviate from the standard.
+.PP
+Section 7.23.2.1 clock() The type clock_t, the macro CLOCKS_PER_SEC, and the function clock() are not implemented. We consider these items belong to operating system code, or to application code when no operating system is present.
+.PP
+Section 7.23.2.3 \fBmktime()\fP The standard specifies that \fBmktime()\fP should return (time_t) -1, if the time cannot be represented. This implementation always returns a 'best effort' representation.
+.PP
+Section 7.23.2.4 \fBtime()\fP The standard specifies that \fBtime()\fP should return (time_t) -1, if the time is not available. Since the application must initialize the time system, this functionality is not implemented.
+.PP
+Section 7.23.2.2, \fBdifftime()\fP Due to the lack of a 64 bit double, the function \fBdifftime()\fP returns a long integer. In most cases this change will be invisible to the user, handled automatically by the compiler.
+.PP
+Section 7.23.1.4 struct tm Per the standard, struct tm->tm_isdst is greater than zero when Daylight Saving time is in effect. This implementation further specifies that, when positive, the value of tm_isdst represents the amount time is advanced during Daylight Saving time.
+.PP
+Section 7.23.3.5 \fBstrftime()\fP Only the 'C' locale is supported, therefore the modifiers 'E' and 'O' are ignored. The 'Z' conversion is also ignored, due to the lack of time zone name.
+.PP
+In addition to the above departures from the standard, there are some behaviors which are different from what is often expected, though allowed under the standard.
+.PP
+There is no 'platform standard' method to obtain the current time, time zone, or daylight savings 'rules' in the AVR environment. Therefore the application must initialize the time system with this information. The functions \fBset_zone()\fP, \fBset_dst()\fP, and \fBset_system_time()\fP are provided for initialization. Once initialized, system time is maintained by calling the function \fBsystem_tick()\fP at one second intervals.
+.PP
+Though not specified in the standard, it is often expected that time_t is a signed integer representing an offset in seconds from Midnight Jan 1 1970... i.e. 'Unix time'. This implementation uses an unsigned 32 bit integer offset from Midnight Jan 1 2000. The use of this 'epoch' helps to simplify the conversion functions, while the 32 bit value allows time to be properly represented until Tue Feb 7 06:28:15 2136 UTC. The macros UNIX_OFFSET and NTP_OFFSET are defined to assist in converting to and from Unix and NTP time stamps.
+.PP
+Unlike desktop counterparts, it is impractical to implement or maintain the 'zoneinfo' database. Therefore no attempt is made to account for time zone, daylight saving, or leap seconds in past dates. All calculations are made according to the currently configured time zone and daylight saving 'rule'.
+.PP
+In addition to C standard functions, re-entrant versions of \fBctime()\fP, \fBasctime()\fP, \fBgmtime()\fP and \fBlocaltime()\fP are provided which, in addition to being re-entrant, have the property of claiming less permanent storage in RAM. An additional time conversion, \fBisotime()\fP and its re-entrant version, uses far less storage than either \fBctime()\fP or \fBasctime()\fP.
+.PP
+Along with the usual smattering of utility functions, such as \fBis_leap_year()\fP, this library includes a set of functions related the sun and moon, as well as sidereal time functions. 
+.SH "Define Documentation"
+.PP 
+.SS "#define NTP_OFFSET   3155673600"Difference between the Y2K and the NTP epochs, in seconds. To convert a Y2K timestamp to NTP... 
+.PP
+.nf
+        unsigned long ntp;
+        time_t y2k;
+
+        y2k = time(NULL);
+        ntp = y2k + NTP_OFFSET;
+
+.fi
+.PP
+ 
+.SS "#define ONE_DAY   86400"One day, expressed in seconds 
+.SS "#define ONE_DEGREE   3600"Angular degree, expressed in arc seconds 
+.SS "#define ONE_HOUR   3600"One hour, expressed in seconds 
+.SS "#define UNIX_OFFSET   946684800"Difference between the Y2K and the UNIX epochs, in seconds. To convert a Y2K timestamp to UNIX... 
+.PP
+.nf
+        long unix;
+        time_t y2k;
+
+        y2k = time(NULL);
+        unix = y2k + UNIX_OFFSET;
+
+.fi
+.PP
+ 
+.SH "Typedef Documentation"
+.PP 
+.SS "typedef \fBuint32_t\fP \fBtime_t\fP"time_t represents seconds elapsed from Midnight, Jan 1 2000 UTC (the Y2K 'epoch'). Its range allows this implementation to represent time up to Tue Feb 7 06:28:15 2136 UTC. 
+.SH "Enumeration Type Documentation"
+.PP 
+.SS "enum \fB_MONTHS_\fP"Enumerated labels for the months. 
+.SS "enum \fB_WEEK_DAYS_\fP"Enumerated labels for the days of the week. 
+.SH "Function Documentation"
+.PP 
+.SS "char* asctime (const struct \fBtm\fP * timeptr)"The asctime function converts the broken-down time of timeptr, into an ascii string in the form
+.PP
+Sun Mar 23 01:03:52 2013 
+.SS "void asctime_r (const struct \fBtm\fP * timeptr, char * buf)"Re entrant version of \fBasctime()\fP. 
+.SS "char* ctime (const \fBtime_t\fP * timer)"The ctime function is equivalent to asctime(localtime(timer)) 
+.SS "void ctime_r (const \fBtime_t\fP * timer, char * buf)"Re entrant version of \fBctime()\fP. 
+.SS "\fBint32_t\fP daylight_seconds (const \fBtime_t\fP * timer)"Computes the amount of time the sun is above the horizon, at the location of the observer.
+.PP
+NOTE: At observer locations inside a polar circle, this value can be zero during the winter, and can exceed ONE_DAY during the summer.
+.PP
+The returned value is in seconds. 
+.SS "\fBint32_t\fP difftime (\fBtime_t\fP time1, \fBtime_t\fP time0)"The difftime function returns the difference between two binary time stamps, time1 - time0. 
+.SS "\fBint16_t\fP equation_of_time (const \fBtime_t\fP * timer)"Computes the difference between apparent solar time and mean solar time. The returned value is in seconds. 
+.SS "\fBuint32_t\fP fatfs_time (const struct \fBtm\fP * timeptr)"Convert a Y2K time stamp into a FAT file system time stamp. 
+.SS "unsigned long gm_sidereal (const \fBtime_t\fP * timer)"Returns Greenwich Mean Sidereal Time, as seconds into the sidereal day. The returned value will range from 0 through 86399 seconds. 
+.SS "struct \fBtm\fP* gmtime (const \fBtime_t\fP * timer)\fC [read]\fP"The gmtime function converts the time stamp pointed to by timer into broken-down time, expressed as UTC. 
+.SS "void gmtime_r (const \fBtime_t\fP * timer, struct \fBtm\fP * timeptr)"Re entrant version of \fBgmtime()\fP. 
+.SS "\fBuint8_t\fP is_leap_year (\fBint16_t\fP year)"Return 1 if year is a leap year, zero if it is not. 
+.SS "struct \fBweek_date\fP* iso_week_date (int year, int yday)\fC [read]\fP"Return a \fBweek_date\fP structure with the ISO_8601 week based date corresponding to the given year and day of year. See http://en.wikipedia.org/wiki/ISO_week_date for more information. 
+.SS "void iso_week_date_r (int year, int yday, struct \fBweek_date\fP *)"Re-entrant version of iso-week_date. 
+.SS "char* isotime (const struct \fBtm\fP * tmptr)"The isotime function constructs an ascii string in the form 
+.PP
+.nf
+ 2013-03-23 01:03:52
+
+.fi
+.PP
+ 
+.SS "void isotime_r (const struct \fBtm\fP *, char *)"Re entrant version of \fBisotime()\fP 
+.SS "unsigned long lm_sidereal (const \fBtime_t\fP * timer)"Returns Local Mean Sidereal Time, as seconds into the sidereal day. The returned value will range from 0 through 86399 seconds. 
+.SS "struct \fBtm\fP* localtime (const \fBtime_t\fP * timer)\fC [read]\fP"The localtime function converts the time stamp pointed to by timer into broken-down time, expressed as Local time. 
+.SS "void localtime_r (const \fBtime_t\fP * timer, struct \fBtm\fP * timeptr)"Re entrant version of \fBlocaltime()\fP. 
+.SS "\fBtime_t\fP mk_gmtime (const struct \fBtm\fP * timeptr)"This function 'compiles' the elements of a broken-down time structure, returning a binary time stamp. The elements of timeptr are interpreted as representing UTC.
+.PP
+The original values of the tm_wday and tm_yday elements of the structure are ignored, and the original values of the other elements are not restricted to the ranges stated for struct tm.
+.PP
+Unlike \fBmktime()\fP, this function DOES NOT modify the elements of timeptr. 
+.SS "\fBtime_t\fP mktime (struct \fBtm\fP * timeptr)"This function 'compiles' the elements of a broken-down time structure, returning a binary time stamp. The elements of timeptr are interpreted as representing Local Time.
+.PP
+The original values of the tm_wday and tm_yday elements of the structure are ignored, and the original values of the other elements are not restricted to the ranges stated for struct tm.
+.PP
+On successful completion, the values of all elements of timeptr are set to the appropriate range. 
+.SS "\fBuint8_t\fP month_length (\fBint16_t\fP year, \fBuint8_t\fP month)"Return the length of month, given the year and month, where month is in the range 1 to 12. 
+.SS "\fBint8_t\fP moon_phase (const \fBtime_t\fP * timer)"Returns an approximation to the phase of the moon. The sign of the returned value indicates a waning or waxing phase. The magnitude of the returned value indicates the percentage illumination. 
+.SS "void set_dst (int(*)(const \fBtime_t\fP *, \fBint32_t\fP *))"Specify the Daylight Saving function.
+.PP
+The Daylight Saving function should examine its parameters to determine whether Daylight Saving is in effect, and return a value appropriate for tm_isdst.
+.PP
+Working examples for the USA and the EU are available..
+.PP
+.PP
+.nf
+ #include <util/eu_dst.h>
+.fi
+.PP
+ for the European Union, and 
+.PP
+.nf
+ #include <util/usa_dst.h>
+
+.fi
+.PP
+ for the United States
+.PP
+If a Daylight Saving function is not specified, the system will ignore Daylight Saving. 
+.SS "void set_position (\fBint32_t\fP latitude, \fBint32_t\fP longitude)"Set the geographic coordinates of the 'observer', for use with several of the following functions. Parameters are passed as seconds of North Latitude, and seconds of East Longitude.
+.PP
+For New York City... 
+.PP
+.nf
+ set_position( 40.7142 * ONE_DEGREE, -74.0064 * ONE_DEGREE); 
+
+.fi
+.PP
+ 
+.SS "void set_system_time (\fBtime_t\fP timestamp)"Initialize the system time. Examples are...
+.PP
+From a Clock / Calendar type RTC: 
+.PP
+.nf
+        struct tm rtc_time;
+
+        read_rtc(&rtc_time);
+        rtc_time.tm_isdst = 0;
+        set_system_time( mktime(&rtc_time) );
+
+.fi
+.PP
+.PP
+From a Network Time Protocol time stamp: 
+.PP
+.nf
+        set_system_time(ntp_timestamp - NTP_OFFSET);
+
+.fi
+.PP
+.PP
+From a UNIX time stamp: 
+.PP
+.nf
+        set_system_time(unix_timestamp - UNIX_OFFSET);
+
+.fi
+.PP
+ 
+.SS "void set_zone (\fBint32_t\fP)"Set the 'time zone'. The parameter is given in seconds East of the Prime Meridian. Example for New York City: 
+.PP
+.nf
+ set_zone(-5 * ONE_HOUR);
+
+.fi
+.PP
+.PP
+If the time zone is not set, the time system will operate in UTC only. 
+.SS "double solar_declination (const \fBtime_t\fP * timer)"Returns the declination of the sun in radians. 
+.SS "\fBtime_t\fP solar_noon (const \fBtime_t\fP * timer)"Computes the time of solar noon, at the location of the observer. 
+.SS "size_t strftime (char * s, size_t maxsize, const char * format, const struct \fBtm\fP * timeptr)"A complete description of \fBstrftime()\fP is beyond the pale of this document. Refer to ISO/IEC document 9899 for details.
+.PP
+All conversions are made using the 'C Locale', ignoring the E or O modifiers. Due to the lack of a time zone 'name', the 'Z' conversion is also ignored. 
+.SS "\fBtime_t\fP sun_rise (const \fBtime_t\fP * timer)"Return the time of sunrise, at the location of the observer. See the note about \fBdaylight_seconds()\fP. 
+.SS "\fBtime_t\fP sun_set (const \fBtime_t\fP * timer)"Return the time of sunset, at the location of the observer. See the note about \fBdaylight_seconds()\fP. 
+.SS "void system_tick (void)"Maintain the system time by calling this function at a rate of 1 Hertz.
+.PP
+It is anticipated that this function will typically be called from within an Interrupt Service Routine, (though that is not required). It therefore includes code which makes it simple to use from within a 'Naked' ISR, avoiding the cost of saving and restoring all the cpu registers.
+.PP
+Such an ISR may resemble the following example... 
+.PP
+.nf
+            ISR(RTC_OVF_vect, ISR_NAKED)
+            {
+                system_tick();
+                reti();
+            }
+
+.fi
+.PP
+ 
+.SS "\fBtime_t\fP time (\fBtime_t\fP * timer)"The time function returns the systems current time stamp. If timer is not a null pointer, the return value is also assigned to the object it points to. 
+.SS "\fBuint8_t\fP week_of_month (const struct \fBtm\fP * timeptr, \fBuint8_t\fP start)"Return the calendar week of month, where the first week is considered to begin on the day of week specified by 'start'. The returned value may range from zero to 5. 
+.SS "\fBuint8_t\fP week_of_year (const struct \fBtm\fP * timeptr, \fBuint8_t\fP start)"Return the calendar week of year, where week 1 is considered to begin on the day of week specified by 'start'. The returned value may range from zero to 52. 
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.
