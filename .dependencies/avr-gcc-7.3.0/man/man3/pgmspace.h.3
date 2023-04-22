@@ -1,0 +1,251 @@
+.TH "pgmspace.h" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+pgmspace.h \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBPROGMEM\fP   __ATTR_PROGMEM__"
+.br
+.ti -1c
+.RI "#define \fBPGM_P\fP   const char *"
+.br
+.ti -1c
+.RI "#define \fBPGM_VOID_P\fP   const void *"
+.br
+.ti -1c
+.RI "#define \fBPSTR\fP(s)   ((const PROGMEM char *)(s))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_byte_near\fP(address_short)   __LPM((\fBuint16_t\fP)(address_short))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_word_near\fP(address_short)   __LPM_word((\fBuint16_t\fP)(address_short))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_dword_near\fP(address_short)   __LPM_dword((\fBuint16_t\fP)(address_short))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_float_near\fP(address_short)   __LPM_float((\fBuint16_t\fP)(address_short))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_ptr_near\fP(address_short)   (void*)__LPM_word((\fBuint16_t\fP)(address_short))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_byte_far\fP(address_long)   __ELPM((\fBuint32_t\fP)(address_long))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_word_far\fP(address_long)   __ELPM_word((\fBuint32_t\fP)(address_long))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_dword_far\fP(address_long)   __ELPM_dword((\fBuint32_t\fP)(address_long))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_float_far\fP(address_long)   __ELPM_float((\fBuint32_t\fP)(address_long))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_ptr_far\fP(address_long)   (void*)__ELPM_word((\fBuint32_t\fP)(address_long))"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_byte\fP(address_short)   pgm_read_byte_near(address_short)"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_word\fP(address_short)   pgm_read_word_near(address_short)"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_dword\fP(address_short)   pgm_read_dword_near(address_short)"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_float\fP(address_short)   pgm_read_float_near(address_short)"
+.br
+.ti -1c
+.RI "#define \fBpgm_read_ptr\fP(address_short)   pgm_read_ptr_near(address_short)"
+.br
+.ti -1c
+.RI "#define \fBpgm_get_far_address\fP(var)"
+.br
+.in -1c
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef void PROGMEM \fBprog_void\fP"
+.br
+.ti -1c
+.RI "typedef char PROGMEM \fBprog_char\fP"
+.br
+.ti -1c
+.RI "typedef unsigned char PROGMEM \fBprog_uchar\fP"
+.br
+.ti -1c
+.RI "typedef \fBint8_t\fP PROGMEM \fBprog_int8_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBuint8_t\fP PROGMEM \fBprog_uint8_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBint16_t\fP PROGMEM \fBprog_int16_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBuint16_t\fP PROGMEM \fBprog_uint16_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBint32_t\fP PROGMEM \fBprog_int32_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBuint32_t\fP PROGMEM \fBprog_uint32_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBint64_t\fP PROGMEM \fBprog_int64_t\fP"
+.br
+.ti -1c
+.RI "typedef \fBuint64_t\fP PROGMEM \fBprog_uint64_t\fP"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "const void * \fBmemchr_P\fP (const void *, int __val, size_t __len)"
+.br
+.ti -1c
+.RI "int \fBmemcmp_P\fP (const void *, const void *, size_t) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "void * \fBmemccpy_P\fP (void *, const void *, int __val, size_t)"
+.br
+.ti -1c
+.RI "void * \fBmemcpy_P\fP (void *, const void *, size_t)"
+.br
+.ti -1c
+.RI "void * \fBmemmem_P\fP (const void *, size_t, const void *, size_t) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "const void * \fBmemrchr_P\fP (const void *, int __val, size_t __len)"
+.br
+.ti -1c
+.RI "char * \fBstrcat_P\fP (char *, const char *)"
+.br
+.ti -1c
+.RI "const char * \fBstrchr_P\fP (const char *, int __val)"
+.br
+.ti -1c
+.RI "const char * \fBstrchrnul_P\fP (const char *, int __val)"
+.br
+.ti -1c
+.RI "int \fBstrcmp_P\fP (const char *, const char *) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "char * \fBstrcpy_P\fP (char *, const char *)"
+.br
+.ti -1c
+.RI "int \fBstrcasecmp_P\fP (const char *, const char *) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "char * \fBstrcasestr_P\fP (const char *, const char *) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "size_t \fBstrcspn_P\fP (const char *__s, const char *__reject) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "size_t \fBstrlcat_P\fP (char *, const char *, size_t)"
+.br
+.ti -1c
+.RI "size_t \fBstrlcpy_P\fP (char *, const char *, size_t)"
+.br
+.ti -1c
+.RI "size_t \fBstrnlen_P\fP (const char *, size_t)"
+.br
+.ti -1c
+.RI "int \fBstrncmp_P\fP (const char *, const char *, size_t) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "int \fBstrncasecmp_P\fP (const char *, const char *, size_t) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "char * \fBstrncat_P\fP (char *, const char *, size_t)"
+.br
+.ti -1c
+.RI "char * \fBstrncpy_P\fP (char *, const char *, size_t)"
+.br
+.ti -1c
+.RI "char * \fBstrpbrk_P\fP (const char *__s, const char *__accept) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "const char * \fBstrrchr_P\fP (const char *, int __val)"
+.br
+.ti -1c
+.RI "char * \fBstrsep_P\fP (char **__sp, const char *__delim)"
+.br
+.ti -1c
+.RI "size_t \fBstrspn_P\fP (const char *__s, const char *__accept) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "char * \fBstrstr_P\fP (const char *, const char *) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "char * \fBstrtok_P\fP (char *__s, const char *__delim)"
+.br
+.ti -1c
+.RI "char * \fBstrtok_rP\fP (char *__s, const char *__delim, char **__last)"
+.br
+.ti -1c
+.RI "size_t \fBstrlen_PF\fP (\fBuint_farptr_t\fP src)"
+.br
+.ti -1c
+.RI "size_t \fBstrnlen_PF\fP (\fBuint_farptr_t\fP src, size_t len)"
+.br
+.ti -1c
+.RI "void * \fBmemcpy_PF\fP (void *dest, \fBuint_farptr_t\fP src, size_t len)"
+.br
+.ti -1c
+.RI "char * \fBstrcpy_PF\fP (char *dest, \fBuint_farptr_t\fP src)"
+.br
+.ti -1c
+.RI "char * \fBstrncpy_PF\fP (char *dest, \fBuint_farptr_t\fP src, size_t len)"
+.br
+.ti -1c
+.RI "char * \fBstrcat_PF\fP (char *dest, \fBuint_farptr_t\fP src)"
+.br
+.ti -1c
+.RI "size_t \fBstrlcat_PF\fP (char *dst, \fBuint_farptr_t\fP src, size_t siz)"
+.br
+.ti -1c
+.RI "char * \fBstrncat_PF\fP (char *dest, \fBuint_farptr_t\fP src, size_t len)"
+.br
+.ti -1c
+.RI "int \fBstrcmp_PF\fP (const char *s1, \fBuint_farptr_t\fP s2) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "int \fBstrncmp_PF\fP (const char *s1, \fBuint_farptr_t\fP s2, size_t n) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "int \fBstrcasecmp_PF\fP (const char *s1, \fBuint_farptr_t\fP s2) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "int \fBstrncasecmp_PF\fP (const char *s1, \fBuint_farptr_t\fP s2, size_t n) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "char * \fBstrstr_PF\fP (const char *s1, \fBuint_farptr_t\fP s2)"
+.br
+.ti -1c
+.RI "size_t \fBstrlcpy_PF\fP (char *dst, \fBuint_farptr_t\fP src, size_t siz)"
+.br
+.ti -1c
+.RI "int \fBmemcmp_PF\fP (const void *, \fBuint_farptr_t\fP, size_t) __ATTR_PURE__"
+.br
+.ti -1c
+.RI "static size_t \fBstrlen_P\fP (const char *s)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.

@@ -1,0 +1,87 @@
+.TH "boot.h" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+boot.h \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBBOOTLOADER_SECTION\fP   __attribute__ ((section ('.bootloader')))"
+.br
+.ti -1c
+.RI "#define \fBboot_spm_interrupt_enable\fP()   (__SPM_REG |= (\fBuint8_t\fP)_BV(SPMIE))"
+.br
+.ti -1c
+.RI "#define \fBboot_spm_interrupt_disable\fP()   (__SPM_REG &= (\fBuint8_t\fP)~_BV(SPMIE))"
+.br
+.ti -1c
+.RI "#define \fBboot_is_spm_interrupt\fP()   (__SPM_REG & (\fBuint8_t\fP)_BV(SPMIE))"
+.br
+.ti -1c
+.RI "#define \fBboot_rww_busy\fP()   (__SPM_REG & (\fBuint8_t\fP)_BV(__COMMON_ASB))"
+.br
+.ti -1c
+.RI "#define \fBboot_spm_busy\fP()   (__SPM_REG & (\fBuint8_t\fP)_BV(__SPM_ENABLE))"
+.br
+.ti -1c
+.RI "#define \fBboot_spm_busy_wait\fP()   do{}while(boot_spm_busy())"
+.br
+.ti -1c
+.RI "#define \fBGET_LOW_FUSE_BITS\fP   (0x0000)"
+.br
+.ti -1c
+.RI "#define \fBGET_LOCK_BITS\fP   (0x0001)"
+.br
+.ti -1c
+.RI "#define \fBGET_EXTENDED_FUSE_BITS\fP   (0x0002)"
+.br
+.ti -1c
+.RI "#define \fBGET_HIGH_FUSE_BITS\fP   (0x0003)"
+.br
+.ti -1c
+.RI "#define \fBboot_lock_fuse_bits_get\fP(address)"
+.br
+.ti -1c
+.RI "#define \fBboot_signature_byte_get\fP(addr)"
+.br
+.ti -1c
+.RI "#define \fBboot_page_fill\fP(address, data)   __boot_page_fill_normal(address, data)"
+.br
+.ti -1c
+.RI "#define \fBboot_page_erase\fP(address)   __boot_page_erase_normal(address)"
+.br
+.ti -1c
+.RI "#define \fBboot_page_write\fP(address)   __boot_page_write_normal(address)"
+.br
+.ti -1c
+.RI "#define \fBboot_rww_enable\fP()   __boot_rww_enable()"
+.br
+.ti -1c
+.RI "#define \fBboot_lock_bits_set\fP(lock_bits)   __boot_lock_bits_set(lock_bits)"
+.br
+.ti -1c
+.RI "#define \fBboot_page_fill_safe\fP(address, data)"
+.br
+.ti -1c
+.RI "#define \fBboot_page_erase_safe\fP(address)"
+.br
+.ti -1c
+.RI "#define \fBboot_page_write_safe\fP(address)"
+.br
+.ti -1c
+.RI "#define \fBboot_rww_enable_safe\fP()"
+.br
+.ti -1c
+.RI "#define \fBboot_lock_bits_set_safe\fP(lock_bits)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.

@@ -1,0 +1,172 @@
+.TH "time.h" 3 "11 May 2022" "Version 2.0.0" "avr-libc" \" -*- nroff -*-
+.ad l
+.nh
+.SH NAME
+time.h \- 
+.SH SYNOPSIS
+.br
+.PP
+.SS "Data Structures"
+
+.in +1c
+.ti -1c
+.RI "struct \fBtm\fP"
+.br
+.ti -1c
+.RI "struct \fBweek_date\fP"
+.br
+.in -1c
+.SS "Defines"
+
+.in +1c
+.ti -1c
+.RI "#define \fBONE_HOUR\fP   3600"
+.br
+.ti -1c
+.RI "#define \fBONE_DEGREE\fP   3600"
+.br
+.ti -1c
+.RI "#define \fBONE_DAY\fP   86400"
+.br
+.ti -1c
+.RI "#define \fBUNIX_OFFSET\fP   946684800"
+.br
+.ti -1c
+.RI "#define \fBNTP_OFFSET\fP   3155673600"
+.br
+.in -1c
+.SS "Typedefs"
+
+.in +1c
+.ti -1c
+.RI "typedef \fBuint32_t\fP \fBtime_t\fP"
+.br
+.in -1c
+.SS "Enumerations"
+
+.in +1c
+.ti -1c
+.RI "enum \fB_WEEK_DAYS_\fP { \fBSUNDAY\fP, \fBMONDAY\fP, \fBTUESDAY\fP, \fBWEDNESDAY\fP, \fBTHURSDAY\fP, \fBFRIDAY\fP, \fBSATURDAY\fP }"
+.br
+.ti -1c
+.RI "enum \fB_MONTHS_\fP { \fBJANUARY\fP, \fBFEBRUARY\fP, \fBMARCH\fP, \fBAPRIL\fP, \fBMAY\fP, \fBJUNE\fP, \fBJULY\fP, \fBAUGUST\fP, \fBSEPTEMBER\fP, \fBOCTOBER\fP, \fBNOVEMBER\fP, \fBDECEMBER\fP }"
+.br
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "\fBtime_t\fP \fBtime\fP (\fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBint32_t\fP \fBdifftime\fP (\fBtime_t\fP time1, \fBtime_t\fP time0)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBmktime\fP (struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBmk_gmtime\fP (const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "struct \fBtm\fP * \fBgmtime\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "void \fBgmtime_r\fP (const \fBtime_t\fP *timer, struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "struct \fBtm\fP * \fBlocaltime\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "void \fBlocaltime_r\fP (const \fBtime_t\fP *timer, struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "char * \fBasctime\fP (const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "void \fBasctime_r\fP (const struct \fBtm\fP *timeptr, char *buf)"
+.br
+.ti -1c
+.RI "char * \fBctime\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "void \fBctime_r\fP (const \fBtime_t\fP *timer, char *buf)"
+.br
+.ti -1c
+.RI "char * \fBisotime\fP (const struct \fBtm\fP *tmptr)"
+.br
+.ti -1c
+.RI "void \fBisotime_r\fP (const struct \fBtm\fP *, char *)"
+.br
+.ti -1c
+.RI "size_t \fBstrftime\fP (char *s, size_t maxsize, const char *format, const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "void \fBset_dst\fP (int(*)(const \fBtime_t\fP *, \fBint32_t\fP *))"
+.br
+.ti -1c
+.RI "void \fBset_zone\fP (\fBint32_t\fP)"
+.br
+.ti -1c
+.RI "void \fBset_system_time\fP (\fBtime_t\fP timestamp)"
+.br
+.ti -1c
+.RI "void \fBsystem_tick\fP (void)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBis_leap_year\fP (\fBint16_t\fP year)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBmonth_length\fP (\fBint16_t\fP year, \fBuint8_t\fP month)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBweek_of_year\fP (const struct \fBtm\fP *timeptr, \fBuint8_t\fP start)"
+.br
+.ti -1c
+.RI "\fBuint8_t\fP \fBweek_of_month\fP (const struct \fBtm\fP *timeptr, \fBuint8_t\fP start)"
+.br
+.ti -1c
+.RI "struct \fBweek_date\fP * \fBiso_week_date\fP (int year, int yday)"
+.br
+.ti -1c
+.RI "void \fBiso_week_date_r\fP (int year, int yday, struct \fBweek_date\fP *)"
+.br
+.ti -1c
+.RI "\fBuint32_t\fP \fBfatfs_time\fP (const struct \fBtm\fP *timeptr)"
+.br
+.ti -1c
+.RI "void \fBset_position\fP (\fBint32_t\fP latitude, \fBint32_t\fP longitude)"
+.br
+.ti -1c
+.RI "\fBint16_t\fP \fBequation_of_time\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBint32_t\fP \fBdaylight_seconds\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBsolar_noon\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBsun_rise\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBtime_t\fP \fBsun_set\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "double \fBsolar_declination\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "\fBint8_t\fP \fBmoon_phase\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "unsigned long \fBgm_sidereal\fP (const \fBtime_t\fP *timer)"
+.br
+.ti -1c
+.RI "unsigned long \fBlm_sidereal\fP (const \fBtime_t\fP *timer)"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP 
+
+.SH "Author"
+.PP 
+Generated automatically by Doxygen for avr-libc from the source code.
