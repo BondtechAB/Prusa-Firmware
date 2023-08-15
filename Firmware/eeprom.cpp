@@ -26,7 +26,7 @@ void eeprom_init()
     eeprom_init_default_word((uint16_t*)EEPROM_MMU_LOAD_FAIL_TOT, 0);
     eeprom_init_default_byte((uint8_t*)EEPROM_MMU_FAIL, 0);
     eeprom_init_default_byte((uint8_t*)EEPROM_MMU_LOAD_FAIL, 0);
-    eeprom_init_default_dword((uint32_t*)EEPROM_TOTAL_TOOLCHANGE_COUNT, 0);
+    eeprom_init_default_dword((uint32_t*)EEPROM_MMU_MATERIAL_CHANGES, 0);
     if (eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)) == EEPROM_EMPTY_VALUE)
     {
         eeprom_update_byte(&(EEPROM_Sheets_base->active_sheet), 0);
@@ -35,7 +35,7 @@ void eeprom_init()
         int last_babystep = eeprom_read_word((uint16_t *)EEPROM_BABYSTEP_Z);
         eeprom_update_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[0].z_offset)), last_babystep);
     }
-    
+
     // initialize the sheet names in eeprom
     for (uint_least8_t i = 0; i < (sizeof(Sheets::s)/sizeof(Sheets::s[0])); i++) {
         SheetName sheetName;
@@ -60,6 +60,14 @@ void eeprom_init()
 
     eeprom_init_default_byte((uint8_t*)EEPROM_HEAT_BED_ON_LOAD_FILAMENT, 1);
 
+}
+
+void eeprom_adjust_bed_reset() {
+    eeprom_update_byte((uint8_t*)EEPROM_BED_CORRECTION_VALID, 1);
+    eeprom_update_byte((uint8_t*)EEPROM_BED_CORRECTION_LEFT, 0);
+    eeprom_update_byte((uint8_t*)EEPROM_BED_CORRECTION_RIGHT, 0);
+    eeprom_update_byte((uint8_t*)EEPROM_BED_CORRECTION_FRONT, 0);
+    eeprom_update_byte((uint8_t*)EEPROM_BED_CORRECTION_REAR, 0);
 }
 
 //! @brief Get default sheet name for index

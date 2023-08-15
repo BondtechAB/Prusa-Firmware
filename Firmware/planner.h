@@ -75,7 +75,6 @@ typedef struct {
   dda_usteps_t step_event_count;            // The number of step events required to complete this block
   uint32_t acceleration_rate;               // The acceleration rate used for acceleration calculation
   unsigned char direction_bits;             // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
-  unsigned char active_extruder;            // Selects the active extruder
   // accelerate_until and decelerate_after are set by calculate_trapezoid_for_block() and they need to be synchronized with the stepper interrupt controller.
   uint32_t accelerate_until;                // The index of the step event on which to stop acceleration
   uint32_t decelerate_after;                // The index of the step event on which to start decelerating
@@ -100,12 +99,11 @@ typedef struct {
 
   // Settings for the trapezoid generator (runs inside an interrupt handler).
   // Changing the following values in the planner needs to be synchronized with the interrupt handler by disabling the interrupts.
-  unsigned long nominal_rate;                        // The nominal step rate for this block in step_events/sec 
-  unsigned long initial_rate;                        // The jerk-adjusted step rate at start of block  
-  unsigned long final_rate;                          // The minimal rate at exit
-  unsigned long acceleration_st;                     // acceleration steps/sec^2
-  //FIXME does it have to be int? Probably uint8_t would be just fine. Need to change in other places as well
-  int fan_speed;
+  uint32_t nominal_rate;              // The nominal step rate for this block in step_events/sec 
+  uint32_t initial_rate;              // The jerk-adjusted step rate at start of block  
+  uint32_t final_rate;                // The minimal rate at exit
+  uint32_t acceleration_steps_per_s2; // acceleration steps/sec^2
+  uint8_t fan_speed; // Print fan speed, ranges from 0 to 255
   volatile char busy;
 
 
@@ -144,7 +142,7 @@ void plan_init();
 // millimaters. Feed rate specifies the speed of the motion.
 
 #ifdef ENABLE_AUTO_BED_LEVELING
-void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate, const uint8_t &extruder);
+void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate);
 
 // Get the position applying the bed level matrix if enabled
 vector_3 plan_get_position();
@@ -160,7 +158,7 @@ void plan_buffer_line_destinationXYZE(float feed_rate);
 
 void plan_set_position_curposXYZE();
 
-void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate, uint8_t extruder, const float* gcode_start_position = NULL, uint16_t segment_idx = 0);
+void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate, const float* gcode_start_position = NULL, uint16_t segment_idx = 0);
 //void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder);
 #endif // ENABLE_AUTO_BED_LEVELING
 
@@ -274,8 +272,6 @@ void reset_acceleration_rates();
 #endif
 
 void update_mode_profile();
-
-uint8_t number_of_blocks();
 
 // #define PLANNER_DIAGNOSTICS
 #ifdef PLANNER_DIAGNOSTICS

@@ -5,7 +5,7 @@
 #include "temperature.h"
 #include "ultralcd.h"
 #include "ConfigurationStore.h"
-#include "Configuration_prusa.h"
+#include "Configuration_var.h"
 
 #ifdef MESH_BED_LEVELING
 #include "mesh_bed_leveling.h"
@@ -15,77 +15,9 @@
 #include "tmc2130.h"
 #endif
 
-
 M500_conf cs;
 
-//! @brief Write data to EEPROM
-//! @param pos destination in EEPROM, 0 is start
-//! @param value value to be written
-//! @param size size of type pointed by value
-//! @param name name of variable written, used only for debug input if DEBUG_EEPROM_WRITE defined
-//! @retval true success
-//! @retval false failed
-#ifdef DEBUG_EEPROM_WRITE
-static bool EEPROM_writeData(uint8_t* pos, uint8_t* value, uint8_t size, const char* name)
-#else //DEBUG_EEPROM_WRITE
-static bool EEPROM_writeData(uint8_t* pos, uint8_t* value, uint8_t size, const char*)
-#endif //DEBUG_EEPROM_WRITE
-{
-#ifdef DEBUG_EEPROM_WRITE
-	printf_P(PSTR("EEPROM_WRITE_VAR addr=0x%04x size=0x%02x name=%s\n"), pos, size, name);
-#endif //DEBUG_EEPROM_WRITE
-  while (size--)
-  {
-
-        eeprom_update_byte(pos, *value);
-        if (eeprom_read_byte(pos) != *value) {
-            SERIAL_ECHOLNPGM("EEPROM Error");
-            return false;
-        }
-
-    pos++;
-    value++;
-  }
-    return true;
-}
-
-#ifdef DEBUG_EEPROM_READ
-static void EEPROM_readData(uint8_t* pos, uint8_t* value, uint8_t size, const char* name)
-#else //DEBUG_EEPROM_READ
-static void EEPROM_readData(uint8_t* pos, uint8_t* value, uint8_t size, const char*)
-#endif //DEBUG_EEPROM_READ
-{
-#ifdef DEBUG_EEPROM_READ
-	printf_P(PSTR("EEPROM_READ_VAR addr=0x%04x size=0x%02x name=%s\n"), pos, size, name);
-#endif //DEBUG_EEPROM_READ
-    while(size--)
-    {
-        *value = eeprom_read_byte(pos);
-        pos++;
-        value++;
-    }
-}
-
 #define EEPROM_VERSION "V2"
-
-#ifdef EEPROM_SETTINGS
-void Config_StoreSettings()
-{
-  strcpy(cs.version,"000"); //!< invalidate data first @TODO use erase to save one erase cycle
-  
-  if (EEPROM_writeData(reinterpret_cast<uint8_t*>(EEPROM_M500_base),reinterpret_cast<uint8_t*>(&cs),sizeof(cs),0), "cs, invalid version")
-  {
-#ifdef TEMP_MODEL
-      temp_model_save_settings();
-#endif
-      strcpy(cs.version,EEPROM_VERSION); //!< validate data if write succeed
-      EEPROM_writeData(reinterpret_cast<uint8_t*>(EEPROM_M500_base->version), reinterpret_cast<uint8_t*>(cs.version), sizeof(cs.version), "cs.version valid");
-  }
-
-  SERIAL_ECHO_START;
-  SERIAL_ECHOLNPGM("Settings Stored");
-}
-#endif //EEPROM_SETTINGS
 
 
 #ifndef DISABLE_M503
@@ -251,50 +183,45 @@ static const M500_conf default_conf PROGMEM =
 };
 
 
-static bool is_uninitialized(void* addr, uint8_t len)
+void Config_StoreSettings()
 {
-    while(len--)
-    {
-        if(reinterpret_cast<uint8_t*>(addr)[len] != 0xff)
-            return false;
-    }
-    return true;
+  strcpy_P(cs.version, default_conf.version);
+  eeprom_update_block(reinterpret_cast<uint8_t*>(&cs), reinterpret_cast<uint8_t*>(EEPROM_M500_base), sizeof(cs));
+#ifdef TEMP_MODEL
+  temp_model_save_settings();
+#endif
+
+  SERIAL_ECHO_START;
+  SERIAL_ECHOLNPGM("Settings Stored");
 }
 
 
 //! @brief Read M500 configuration
-//! @retval true Succeeded. Stored settings retrieved or default settings retrieved in case EEPROM has been erased.
-//! @retval false Failed. Default settings has been retrieved, because of older version or corrupted data.
+//! @retval true Succeeded. Stored settings retrieved or default settings retrieved in case EEPROM cs was empty.
+//! @retval false Failed. Default settings has been retrieved, because of version mismatch
 bool Config_RetrieveSettings()
 {
-  bool previous_settings_retrieved = true;
-    char ver[4]=EEPROM_VERSION;
-    EEPROM_readData(reinterpret_cast<uint8_t*>(EEPROM_M500_base->version), reinterpret_cast<uint8_t*>(cs.version), sizeof(cs.version), "cs.version"); //read stored version
+    eeprom_read_block(reinterpret_cast<uint8_t*>(cs.version), reinterpret_cast<uint8_t*>(EEPROM_M500_base->version), sizeof(cs.version));
     //  SERIAL_ECHOLN("Version: [" << ver << "] Stored version: [" << cs.version << "]");
-    if (strncmp(ver,cs.version,3) == 0)  // version number match
+    if (strncmp_P(cs.version, default_conf.version, sizeof(EEPROM_VERSION)) == 0)  // version number match
     {
+        // Initialize arc interpolation settings in eeprom if they are not already
+        eeprom_init_default_float(&EEPROM_M500_base->mm_per_arc_segment, pgm_read_float(&default_conf.mm_per_arc_segment));
+        eeprom_init_default_float(&EEPROM_M500_base->min_mm_per_arc_segment, pgm_read_float(&default_conf.min_mm_per_arc_segment));
+        eeprom_init_default_byte(&EEPROM_M500_base->n_arc_correction, pgm_read_byte(&default_conf.n_arc_correction));
+        eeprom_init_default_word(&EEPROM_M500_base->min_arc_segments, pgm_read_word(&default_conf.min_arc_segments));
+        eeprom_init_default_word(&EEPROM_M500_base->arc_segments_per_sec, pgm_read_word(&default_conf.arc_segments_per_sec));
+        
+        // Initialize the travel_acceleration in eeprom if not already
+        eeprom_init_default_float(&EEPROM_M500_base->travel_acceleration, pgm_read_float(&default_conf.travel_acceleration));
 
-        EEPROM_readData(reinterpret_cast<uint8_t*>(EEPROM_M500_base), reinterpret_cast<uint8_t*>(&cs), sizeof(cs), "cs");
+        // Initialize the max_feedrate_silent and max_acceleration_units_per_sq_second_silent in eeprom if not already
+        eeprom_init_default_block(&EEPROM_M500_base->max_feedrate_silent, sizeof(EEPROM_M500_base->max_feedrate_silent), default_conf.max_feedrate_silent);
+        eeprom_init_default_block(&EEPROM_M500_base->max_acceleration_units_per_sq_second_silent, sizeof(EEPROM_M500_base->max_acceleration_units_per_sq_second_silent), default_conf.max_acceleration_units_per_sq_second_silent);
+
+        // load the CS to RAM
+        eeprom_read_block(reinterpret_cast<uint8_t*>(&cs), reinterpret_cast<uint8_t*>(EEPROM_M500_base), sizeof(cs));
         calculate_extruder_multipliers();
-
-    //if max_feedrate_silent and max_acceleration_units_per_sq_second_silent were never stored to eeprom, use default values:
-        for (uint8_t i = 0; i < (sizeof(cs.max_feedrate_silent)/sizeof(cs.max_feedrate_silent[0])); ++i)
-        {
-            const uint32_t erased = 0xffffffff;
-            if (is_uninitialized(&(cs.max_feedrate_silent[i]), sizeof(float))) {
-                memcpy_P(&cs.max_feedrate_silent[i],&default_conf.max_feedrate_silent[i], sizeof(cs.max_feedrate_silent[i]));
-            }
-            if (erased == cs.max_acceleration_units_per_sq_second_silent[i]) {
-                memcpy_P(&cs.max_acceleration_units_per_sq_second_silent[i],&default_conf.max_acceleration_units_per_sq_second_silent[i],sizeof(cs.max_acceleration_units_per_sq_second_silent[i]));
-            }
-        }
-        // Initialize arc interpolation settings if they are not already
-        if (is_uninitialized(&cs.mm_per_arc_segment, sizeof(cs.mm_per_arc_segment))) cs.mm_per_arc_segment = default_conf.mm_per_arc_segment;
-        if (is_uninitialized(&cs.min_mm_per_arc_segment, sizeof(cs.min_mm_per_arc_segment))) cs.min_mm_per_arc_segment = default_conf.min_mm_per_arc_segment;
-        if (is_uninitialized(&cs.n_arc_correction, sizeof(cs.n_arc_correction))) cs.n_arc_correction = default_conf.n_arc_correction;
-        if (is_uninitialized(&cs.min_arc_segments, sizeof(cs.min_arc_segments))) cs.min_arc_segments = default_conf.min_arc_segments;
-        if (is_uninitialized(&cs.arc_segments_per_sec, sizeof(cs.arc_segments_per_sec))) cs.arc_segments_per_sec = default_conf.arc_segments_per_sec;
-
 
 #ifdef TMC2130
     for (uint8_t j = X_AXIS; j <= Y_AXIS; j++)
@@ -320,9 +247,6 @@ bool Config_RetrieveSettings()
     tmc2130_set_res(E_AXIS, cs.axis_ustep_resolution[E_AXIS]);
 #endif //TMC2130
 
-        if(is_uninitialized(&cs.travel_acceleration, sizeof(cs.travel_acceleration)))
-            cs.travel_acceleration = cs.acceleration;
-
 		reset_acceleration_rates();
 
     // Call updatePID (similar to when we have processed M301)
@@ -337,19 +261,13 @@ bool Config_RetrieveSettings()
     else
     {
         Config_ResetDefault();
-    //Return false to inform user that eeprom version was changed and firmware is using default hardcoded settings now.
-    //In case that storing to eeprom was not used yet, do not inform user that hardcoded settings are used.
-    if (eeprom_read_byte(reinterpret_cast<uint8_t*>(&(EEPROM_M500_base->version[0]))) != 0xFF ||
-      eeprom_read_byte(reinterpret_cast<uint8_t*>(&(EEPROM_M500_base->version[1]))) != 0xFF ||
-      eeprom_read_byte(reinterpret_cast<uint8_t*>(&(EEPROM_M500_base->version[2]))) != 0xFF)
-    {
-      previous_settings_retrieved = false;
+        //Return false to inform user that eeprom version was changed and firmware is using default hardcoded settings now.
+        //In case that storing to eeprom was not used yet, do not inform user that hardcoded settings are used.
+        if (eeprom_is_initialized_block(EEPROM_M500_base->version, sizeof(EEPROM_M500_base->version))) {
+            return false;
+        }
     }
-    }
-    #ifdef EEPROM_CHITCHAT
-      Config_PrintSettings();
-    #endif
-  return previous_settings_retrieved;
+    return true;
 }
 #endif
 

@@ -2,24 +2,20 @@
 #define _CONFIG_H
 
 
-#include "Configuration_prusa.h"
+#include "Configuration_var.h"
 #include "pins.h"
 
-#if (defined(VOLT_IR_PIN) && defined(IR_SENSOR))
-// TODO: IR_SENSOR_ANALOG currently disabled as being incompatible with the new thermal regulation
-// # define IR_SENSOR_ANALOG
-#endif
 
 //ADC configuration
-#ifndef IR_SENSOR_ANALOG
-#define ADC_CHAN_MSK      0b0000001001011111 //used AD channels bit mask (0,1,2,3,4,6,9)
-#define ADC_DIDR_MSK      0b0000001001011111 //AD channels DIDR mask (1 ~ disabled digital input)
-#define ADC_CHAN_CNT      7         //number of used channels)
-#else //!IR_SENSOR_ANALOG
+#if defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_IR_ANALOG)
 #define ADC_CHAN_MSK      0b0000001101011111 //used AD channels bit mask (0,1,2,3,4,6,8,9)
 #define ADC_DIDR_MSK      0b0000001001011111 //AD channels DIDR mask (1 ~ disabled digital input)
 #define ADC_CHAN_CNT      8         //number of used channels)
-#endif //!IR_SENSOR_ANALOG
+#else
+#define ADC_CHAN_MSK      0b0000001001011111 //used AD channels bit mask (0,1,2,3,4,6,9)
+#define ADC_DIDR_MSK      0b0000001001011111 //AD channels DIDR mask (1 ~ disabled digital input)
+#define ADC_CHAN_CNT      7         //number of used channels)
+#endif
 #define ADC_OVRSAMPL      16        //oversampling multiplier
 #define ADC_CALLBACK      adc_callback //callback function ()
 
@@ -31,7 +27,6 @@
 #define SWI2C_TMO         2048 //2048 cycles timeout
 
 //PAT9125 configuration
-//#define PAT9125_SWSPI // software SPI mode (incomplete)
 #ifdef SWI2C_SCL
 #define PAT9125_SWI2C   // software I2C mode
 #else
@@ -43,7 +38,12 @@
 //#define PAT9125_I2C_ADDR  0x73  //ID=NC
 #define PAT9125_XRES      0
 #define PAT9125_YRES      240                   // maximum resolution (5*X cpi)
-#define PAT9124_YRES_MM   (5*PAT9125_YRES/25.4) // counts per mm
+#define PAT9125_YRES_MM   (5*PAT9125_YRES/25.4) // counts per mm
+#define PAT9125_INVERT_X  0 //1 means flipped
+#define PAT9125_INVERT_Y  1 //1 means flipped
+#define PAT9125_SWAP_XY   0 //X is Y and Y is X
+#define PAT9125_12B_RES   1 //8bit or 12bit signed motion data
+#define PAT9125_NEW_INIT  1 //set to 1 to use the magic sequence provided by pixart.
 
 //SM4 configuration
 #define SM4_DEFDELAY      500       //default step delay [us]
@@ -55,11 +55,15 @@
 #define TMC2130_SPCR           SPI_SPCR(TMC2130_SPI_RATE, 1, 1, 1, 0)
 #define TMC2130_SPSR           SPI_SPSR(TMC2130_SPI_RATE)
 
+// This is set by the cmake build to be able to take control of
+// the language flag, without breaking existing build mechanisms.
+#ifndef CMAKE_CONTROL
 //LANG - Multi-language support
 //#define LANG_MODE              0 // primary language only
 #define LANG_MODE              1 // sec. language support
+#endif
 
-#define LANG_SIZE_RESERVED     0x3000 // reserved space for secondary language (12288 bytes).
+#define LANG_SIZE_RESERVED     0x3500 // reserved space for secondary language (13568 bytes).
                                       // 0x3D00 Maximum 15616 bytes as it depends on xflash_layout.h
                                       // 16 Languages max. per group including stock 
 

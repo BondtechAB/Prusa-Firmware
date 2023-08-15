@@ -37,6 +37,10 @@ extern void lcd_no_autoscroll(void);*/
 
 extern void lcd_set_cursor(uint8_t col, uint8_t row);
 
+/// @brief Change the cursor column position while preserving the current row position
+/// @param col column number, ranges from 0 to LCD_WIDTH - 1
+void lcd_set_cursor_column(uint8_t col);
+
 extern void lcd_createChar_P(uint8_t, const uint8_t*);
 
 
@@ -50,17 +54,21 @@ extern int lcd_printf_P(const char* format, ...);
 extern void lcd_space(uint8_t n);
 
 extern void lcd_printNumber(unsigned long n, uint8_t base);
-extern void lcd_printFloat(double number, uint8_t digits);
 
 extern void lcd_print(const char*);
-extern void lcd_print_pad(const char*, uint8_t len);
+extern char lcd_print_pad(const char* s, uint8_t len);
+
+/// @brief print a string from PROGMEM with left-adjusted padding
+/// @param s string from PROGMEM.
+/// @param len maximum number of characters to print, including padding. Ranges from 0 to LCD_WIDTH.
+/// @return number of padded bytes. 0 means there was no padding.
+uint8_t lcd_print_pad_P(const char* s, uint8_t len);
 extern void lcd_print(char, int = 0);
 extern void lcd_print(unsigned char, int = 0);
 extern void lcd_print(int, int = 10);
 extern void lcd_print(unsigned int, int = 10);
 extern void lcd_print(long, int = 10);
 extern void lcd_print(unsigned long, int = 10);
-extern void lcd_print(double, int = 2);
 
 //! @brief Clear screen
 #define ESC_2J     "\x1b[2J"
@@ -90,17 +98,9 @@ typedef void (*lcd_lcdupdate_func_t)(void);
 //Set to none-zero when the LCD needs to draw, decreased after every draw. Set to 2 in LCD routines so the LCD gets at least 1 full redraw (first redraw is partial)
 extern uint8_t lcd_draw_update;
 
-extern int32_t lcd_encoder;
+extern int16_t lcd_encoder;
 
-extern uint8_t lcd_encoder_bits;
-
-// lcd_encoder_diff is updated from interrupt context and added to lcd_encoder every LCD update
-extern int8_t lcd_encoder_diff;
-
-//the last checked lcd_buttons in a bit array.
-extern uint8_t lcd_buttons;
-
-extern uint8_t lcd_button_pressed;
+extern uint8_t lcd_click_trigger;
 
 extern uint8_t lcd_update_enabled;
 
@@ -121,6 +121,10 @@ extern void lcd_beeper_quick_feedback(void);
 
 //Cause an LCD refresh, and give the user visual or audible feedback that something has happened
 extern void lcd_quick_feedback(void);
+
+/// @brief Check whether knob is rotated or clicked and update relevant
+///variables. Flags are set by lcd_buttons_update in ISR context.
+extern void lcd_knob_update();
 
 extern void lcd_update(uint8_t lcdDrawUpdateOverride);
 
@@ -151,20 +155,7 @@ private:
     bool m_updateEnabled;
 };
 
-
 ////////////////////////////////////
-// Setup button and encode mappings for each panel (into 'lcd_buttons' variable
-//
-// This is just to map common functions (across different panels) onto the same 
-// macro name. The mapping is independent of whether the button is directly connected or 
-// via a shift/i2c register.
-
-#define BLEN_B 1
-#define BLEN_A 0
-#define EN_B (1<<BLEN_B) // The two encoder pins are connected through BTN_EN1 and BTN_EN2
-#define EN_A (1<<BLEN_A)
-#define BLEN_C 2 
-#define EN_C (1<<BLEN_C) 
 
 //! @brief Was button clicked?
 //!
@@ -175,29 +166,21 @@ private:
 //!
 //! @retval 0 button was not clicked
 //! @retval 1 button was clicked
-#define LCD_CLICKED (lcd_buttons&EN_C)
+#define LCD_CLICKED (lcd_click_trigger)
 
-////////////////////////
-// Setup Rotary Encoder Bit Values (for two pin encoders to indicate movement)
-// These values are independent of which pins are used for EN_A and EN_B indications
-// The rotary encoder part is also independent to the chipset used for the LCD
-#define encrot0 0
-#define encrot1 2
-#define encrot2 3
-#define encrot3 1
-
+////////////////////////////////////
 
 //Custom characters defined in the first 8 characters of the LCD
 #define LCD_STR_BEDTEMP      "\x00"
 #define LCD_STR_DEGREE       "\x01"
-#define LCD_STR_ARROW_2_DOWN "\x01"
 #define LCD_STR_THERMOMETER  "\x02"
-#define LCD_STR_CONFIRM      "\x02"
 #define LCD_STR_UPLEVEL      "\x03"
 #define LCD_STR_REFRESH      "\x04"
 #define LCD_STR_FOLDER       "\x05"
 #define LCD_STR_FEEDRATE     "\x06"
+#define LCD_STR_ARROW_2_DOWN "\x06"
 #define LCD_STR_CLOCK        "\x07"
+#define LCD_STR_CONFIRM      "\x07"
 #define LCD_STR_ARROW_RIGHT  "\x7E" //from the default character set
 #define LCD_STR_SOLID_BLOCK  "\xFF"  //from the default character set
 
@@ -207,8 +190,7 @@ extern void lcd_set_custom_characters_nextpage(void);
 //! @brief Consume click and longpress event
 inline void lcd_consume_click()
 {
-    lcd_button_pressed = 0;
-    lcd_buttons &= 0xff^EN_C;
+    lcd_click_trigger = 0;
     lcd_longpress_trigger = 0;
 }
 

@@ -2,7 +2,6 @@
 #include "cmdqueue.h"
 #include "cardreader.h"
 #include "ultralcd.h"
-#include "conv2str.h"
 #include "menu.h"
 #include "stepper.h"
 #include "temperature.h"
@@ -403,7 +402,7 @@ void CardReader::openFileReadFilteredGcode(const char* name, bool replace_curren
                 // SERIAL_ERROR_START;
                 // SERIAL_ERRORPGM("trying to call sub-gcode files with too many levels. MAX level is:");
                 // SERIAL_ERRORLN(SD_PROCEDURE_DEPTH);
-                kill(ofKill, 1);
+                kill(ofKill);
                 return;
             }
             
@@ -470,7 +469,7 @@ void CardReader::openFileWrite(const char* name)
             // SERIAL_ERROR_START;
             // SERIAL_ERRORPGM("trying to call sub-gcode files with too many levels. MAX level is:");
             // SERIAL_ERRORLN(SD_PROCEDURE_DEPTH);
-            kill(ofKill, 1);
+            kill(ofKill);
             return;
         }
         
@@ -578,9 +577,9 @@ void CardReader::getStatus(bool arg_P)
         SERIAL_PROTOCOL('/');
         SERIAL_PROTOCOLLN(filesize);
         uint16_t time = ( _millis() - starttime ) / 60000U;
-        SERIAL_PROTOCOL(itostr2(time/60));
+        SERIAL_PROTOCOL((int)(time / 60));
         SERIAL_PROTOCOL(':');
-        SERIAL_PROTOCOLLN(itostr2(time%60));
+        SERIAL_PROTOCOLLN((int)(time % 60));
     }
     else
         SERIAL_PROTOCOLLNPGM("Not SD printing");
@@ -650,12 +649,10 @@ void CardReader::checkautostart(bool force)
     if(p.name[9]!='~') //skip safety copies
     if(strncmp((char*)p.name,autoname,5)==0)
     {
-      char cmd[30];
       // M23: Select SD file
-      sprintf_P(cmd, PSTR("M23 %s"), autoname);
-      enquecommand(cmd);
+      enquecommandf_P(MSG_M23, autoname);
       // M24: Start/resume SD print
-      enquecommand_P(PSTR("M24"));
+      enquecommand_P(MSG_M24);
       found=true;
     }
   }
@@ -802,7 +799,7 @@ void CardReader::presort() {
 	// Throw away old sort index
 	flush_presort();
 	
-	if (farm_mode || IS_SD_INSERTED == false) return; //sorting is not used in farm mode
+	if (IS_SD_INSERTED == false) return; //sorting is not used in farm mode
 	uint8_t sdSort = eeprom_read_byte((uint8_t*)EEPROM_SD_SORT);
 
 	KEEPALIVE_STATE(IN_HANDLER);
@@ -813,7 +810,7 @@ void CardReader::presort() {
 		// Never sort more than the max allowed
 		// If you use folders to organize, 20 may be enough
 		if (fileCnt > SDSORT_LIMIT) {
-			if (sdSort != SD_SORT_NONE) {
+			if ((sdSort != SD_SORT_NONE) && !farm_mode) {
 				lcd_show_fullscreen_message_and_wait_P(_i("Some files will not be sorted. Max. No. of files in 1 folder for sorting is 100."));////MSG_FILE_CNT c=20 r=6
 			}
 			fileCnt = SDSORT_LIMIT;
@@ -832,7 +829,7 @@ void CardReader::presort() {
 			sort_entries[i] = position >> 5;
 		}
 
-		if ((fileCnt > 1) && (sdSort != SD_SORT_NONE)) {
+		if ((fileCnt > 1) && (sdSort != SD_SORT_NONE) && !farm_mode) {
 
 #ifdef SORTING_SPEEDTEST
 			LongTimer sortingSpeedtestTimer;

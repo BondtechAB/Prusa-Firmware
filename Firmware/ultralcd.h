@@ -17,11 +17,13 @@ void ultralcd_init();
 #define LCD_STATUS_NONE     0 //< No alert message set
 
 #define LCD_STATUS_INFO_TIMEOUT 20000
+#define LCD_STATUS_DELAYED_TIMEOUT 4000
 
 // Set the current status message (equivalent to LCD_STATUS_NONE)
 void lcd_setstatus(const char* message);
 void lcd_setstatuspgm(const char* message);
 void lcd_setstatus_serial(const char* message);
+void lcd_reset_status_message_timeout();
 
 //! return to the main status screen and display the alert message
 //! Beware - it has sideeffects:
@@ -35,9 +37,8 @@ void lcd_setalertstatuspgm(const char* message, uint8_t severity = LCD_STATUS_AL
 uint8_t get_message_level();
 void lcd_reset_alert_level();
 
-void lcd_adjust_z();
 void lcd_pick_babystep();
-void lcd_alright();
+uint8_t lcd_alright();
 void show_preheat_nozzle_warning();
 void lcd_wait_interact();
 void lcd_loading_filament();
@@ -57,7 +58,7 @@ void lcd_load_filament_color_check();
 extern void lcd_belttest();
 extern bool lcd_selftest();
 
-void lcd_menu_statistics(); 
+void lcd_menu_statistics();
 
 void lcd_status_screen();                         // NOT static due to using inside "Marlin_main" module ("manage_inactivity()")
 void lcd_menu_extruder_info();                    // NOT static due to using inside "Marlin_main" module ("manage_inactivity()")
@@ -69,10 +70,11 @@ void lcd_crash_detect_enable();
 void lcd_crash_detect_disable();
 #endif
 
-enum LCDButtonChoice : int_fast8_t {
-    LCD_LEFT_BUTTON_CHOICE = 1,
-    LCD_MIDDLE_BUTTON_CHOICE = 0,
-    LCD_BUTTON_TIMEOUT      = -1,
+enum LCDButtonChoice : uint_fast8_t {
+    LCD_LEFT_BUTTON_CHOICE = 0,
+    LCD_MIDDLE_BUTTON_CHOICE = 1,
+    LCD_RIGHT_BUTTON_CHOICE = 2,
+    LCD_BUTTON_TIMEOUT      = 0xFF,
 };
 
 extern const char* lcd_display_message_fullscreen_P(const char *msg);
@@ -80,25 +82,25 @@ extern const char* lcd_display_message_fullscreen_P(const char *msg);
 extern void lcd_return_to_status();
 extern void lcd_wait_for_click();
 extern bool lcd_wait_for_click_delay(uint16_t nDelay);
+void lcd_show_choices_prompt_P(uint8_t selected, const char *first_choice, const char *second_choice, uint8_t second_col, const char *third_choice = nullptr);
 extern void lcd_show_fullscreen_message_and_wait_P(const char *msg);
-// 0: no, 1: yes, -1: timeouted
-extern int8_t lcd_show_yes_no_and_wait(bool allow_timeouting = true, bool default_yes = false);
-// 0: no, 1: yes, -1: timeouted
-extern int8_t lcd_show_fullscreen_message_yes_no_and_wait_P(const char *msg, bool allow_timeouting = true, bool default_yes = false);
-extern int8_t lcd_show_multiscreen_message_two_choices_and_wait_P(const char *msg, bool allow_timeouting, bool default_yes,
-        const char *first_choice, const char *second_choice, uint8_t second_col = 7);
-extern int8_t lcd_show_multiscreen_message_yes_no_and_wait_P(const char *msg, bool allow_timeouting = true, bool default_yes = false);
+extern uint8_t lcd_show_yes_no_and_wait(bool allow_timeouting = true, uint8_t default_selection = LCD_MIDDLE_BUTTON_CHOICE);
+extern uint8_t lcd_show_fullscreen_message_yes_no_and_wait_P(const char *msg, bool allow_timeouting = true, uint8_t default_selection = LCD_MIDDLE_BUTTON_CHOICE);
+extern uint8_t lcd_show_multiscreen_message_with_choices_and_wait_P(
+    const char * const msg, bool allow_timeouting, uint8_t default_selection,
+    const char * const first_choice, const char * const second_choice, const char * const third_choice = nullptr,
+    uint8_t second_col = 7);
+extern uint8_t lcd_show_multiscreen_message_yes_no_and_wait_P(const char *msg, bool allow_timeouting = true, uint8_t default_selection = LCD_MIDDLE_BUTTON_CHOICE);
 // Ask the user to move the Z axis up to the end stoppers and let
 // the user confirm that it has been done.
 
 #ifndef TMC2130
 extern bool lcd_calibrate_z_end_stop_manual(bool only_z);
+extern void lcd_diag_show_end_stops();
 #endif
 
 // Show the result of the calibration process on the LCD screen.
-  extern void lcd_bed_calibration_show_result(BedSkewOffsetDetectionResultType result, uint8_t point_too_far_mask);
-
-extern void lcd_diag_show_end_stops();
+extern void lcd_bed_calibration_show_result(BedSkewOffsetDetectionResultType result, uint8_t point_too_far_mask);
 
 
 #define LCD_MESSAGEPGM(x) lcd_setstatuspgm(PSTR(x))
@@ -111,9 +113,7 @@ extern void lcd_diag_show_end_stops();
 enum class LcdCommands : uint_least8_t
 {
 	Idle,
-	LoadFilament,
 	StopPrint,
-	FarmModeConfirm,
 	LongPause,
 	PidExtruder,
 	Layer1Cal,
@@ -124,7 +124,6 @@ enum class LcdCommands : uint_least8_t
 };
 
 extern LcdCommands lcd_commands_type;
-extern int8_t FSensorStateMenu;
 
 enum class CustomMsg : uint_least8_t
 {
@@ -137,6 +136,7 @@ enum class CustomMsg : uint_least8_t
     M0Wait,          //!< M0/M1 Wait command working even from SD
     M117,            //!< M117 Set the status line message on the LCD
     Resuming,        //!< Resuming message
+    MMUProgress,     ///< MMU progress message
 };
 
 extern CustomMsg custom_message_type;
@@ -156,21 +156,17 @@ extern bool FarmOrUserECool();
 #define SILENT_MODE_OFF SILENT_MODE_POWER
 #endif
 
-#ifdef IR_SENSOR_ANALOG
-extern bool bMenuFSDetect;
+#if defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_IR_ANALOG)
 void printf_IRSensorAnalogBoardChange();
-#endif //IR_SENSOR_ANALOG
+#endif //defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_IR_ANALOG)
 
 extern int8_t SilentModeMenu;
-extern uint8_t SilentModeMenu_MMU;
 
-extern bool cancel_heatup;
 extern bool isPrintPaused;
 
 extern uint8_t scrollstuff;
 
 
-void lcd_ignore_click(bool b=true);
 void lcd_commands();
 
 
@@ -187,17 +183,16 @@ enum class FilamentAction : uint_least8_t
     MmuUnLoad,
     MmuEject,
     MmuCut,
+    MmuLoadingTest,
     Preheat,
     Lay1Cal,
 };
 
 extern FilamentAction eFilamentAction;
-extern bool bFilamentPreheatState;
-extern bool bFilamentAction;
 void mFilamentItem(uint16_t nTemp,uint16_t nTempBed);
-void mFilamentItemForce();
 void lcd_generic_preheat_menu();
-void unload_filament(bool automatic = false);
+void unload_filament(float unloadLength);
+void lcd_AutoLoadFilament();
 
 
 void lcd_wait_for_heater();
@@ -221,7 +216,6 @@ void lcd_language();
 #endif
 
 void lcd_wizard();
-bool lcd_autoDepleteEnabled();
 
 //! @brief Wizard state
 enum class WizState : uint8_t
@@ -247,11 +241,14 @@ enum class WizState : uint8_t
 
 void lcd_wizard(WizState state);
 
-extern void lcd_experimental_toggle();
 extern void lcd_experimental_menu();
+
+uint8_t lcdui_print_extruder(void);
 
 #ifdef PINDA_TEMP_COMP
 extern void lcd_pinda_temp_compensation_toggle();
 #endif //PINDA_TEMP_COMP
+
+extern void lcd_heat_bed_on_load_toggle();
 
 #endif //ULTRALCD_H

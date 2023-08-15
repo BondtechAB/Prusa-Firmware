@@ -21,6 +21,7 @@
 #include "Configuration.h"
 #include "pins.h"
 #include "Timer.h"
+#include "mmu2.h"
 extern uint8_t mbl_z_probe_nr;
 
 #ifndef AT90USB
@@ -180,21 +181,6 @@ void manage_inactivity(bool ignore_stepper_queue=false);
     #define disable_z() disable_force_z()
 #endif // PSU_Delta
 
-
-//#if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN > -1
-//#ifdef Z_DUAL_STEPPER_DRIVERS
-//#define  enable_z() { WRITE(Z_ENABLE_PIN, Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN, Z_ENABLE_ON); }
-//#define disable_z() { WRITE(Z_ENABLE_PIN,!Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN,!Z_ENABLE_ON); axis_known_position[Z_AXIS] = false; }
-//#else
-//#define  enable_z() WRITE(Z_ENABLE_PIN, Z_ENABLE_ON)
-//#define disable_z() { WRITE(Z_ENABLE_PIN,!Z_ENABLE_ON); axis_known_position[Z_AXIS] = false; }
-//#endif
-//#else
-//#define enable_z() ;
-//#define disable_z() ;
-//#endif
-
-
 #if defined(E0_ENABLE_PIN) && (E0_ENABLE_PIN > -1)
   #define enable_e0() WRITE(E0_ENABLE_PIN, E_ENABLE_ON)
   #define disable_e0() WRITE(E0_ENABLE_PIN,!E_ENABLE_ON)
@@ -202,23 +188,6 @@ void manage_inactivity(bool ignore_stepper_queue=false);
   #define enable_e0()  /* nothing */
   #define disable_e0() /* nothing */
 #endif
-
-#if (EXTRUDERS > 1) && defined(E1_ENABLE_PIN) && (E1_ENABLE_PIN > -1)
-  #define enable_e1() WRITE(E1_ENABLE_PIN, E_ENABLE_ON)
-  #define disable_e1() WRITE(E1_ENABLE_PIN,!E_ENABLE_ON)
-#else
-  #define enable_e1()  /* nothing */
-  #define disable_e1() /* nothing */
-#endif
-
-#if (EXTRUDERS > 2) && defined(E2_ENABLE_PIN) && (E2_ENABLE_PIN > -1)
-  #define enable_e2() WRITE(E2_ENABLE_PIN, E_ENABLE_ON)
-  #define disable_e2() WRITE(E2_ENABLE_PIN,!E_ENABLE_ON)
-#else
-  #define enable_e2()  /* nothing */
-  #define disable_e2() /* nothing */
-#endif
-
 
 enum AxisEnum {X_AXIS=0, Y_AXIS=1, Z_AXIS=2, E_AXIS=3, X_HEAD=4, Y_HEAD=5};
 #define X_AXIS_MASK  1
@@ -233,7 +202,7 @@ void FlushSerialRequestResend();
 void ClearToSend();
 void update_currents();
 
-void kill(const char *full_screen_message = NULL, unsigned char id = 0);
+void kill(const char *full_screen_message = NULL);
 void finishAndDisableSteppers();
 
 void UnconditionalStop();                   // Stop heaters, motion and clear current print status
@@ -271,22 +240,25 @@ extern uint8_t axis_relative_modes;
 extern float feedrate;
 extern int feedmultiply;
 extern int extrudemultiply; // Sets extrude multiply factor (in percent) for all extruders
-extern int extruder_multiply[EXTRUDERS]; // sets extrude multiply factor (in percent) for each extruder individually
 extern float extruder_multiplier[EXTRUDERS]; // reciprocal of cross-sectional area of filament (in square millimeters), stored this way to reduce computational burden in planner
 extern float current_position[NUM_AXIS] ;
 extern float destination[NUM_AXIS] ;
 extern float min_pos[3];
 extern float max_pos[3];
 extern bool axis_known_position[3];
-extern int fanSpeed;
+extern uint8_t fanSpeed; //!< Print fan speed, ranges from 0 to 255
 extern uint8_t newFanSpeed;
-extern int8_t lcd_change_fil_state;
 extern float default_retraction;
 
 void get_coordinates();
 void prepare_move(uint16_t start_segment_idx = 0);
 void prepare_arc_move(bool isclockwise, uint16_t start_segment_idx = 0);
 uint16_t restore_interrupted_gcode();
+
+///@brief Helper function to reduce code size, cheaper to call function than to inline division
+///@param feedrate_mm_min feedrate with unit mm per minute
+///@returns feedrate with unit mm per second
+float __attribute__((noinline)) get_feedrate_mm_s(const float feedrate_mm_min);
 
 #ifdef TMC2130
 void homeaxis(uint8_t axis, uint8_t cnt = 1, uint8_t* pstep = 0);
@@ -300,28 +272,26 @@ extern float retract_length_swap;
 extern float retract_recover_length_swap;
 #endif
 
-extern uint8_t host_keepalive_interval;
-
-extern unsigned long starttime;
-extern unsigned long stoptime;
+extern uint32_t starttime; // milliseconds
+extern uint32_t pause_time; // milliseconds
+extern uint32_t start_pause_print; // milliseconds
 extern ShortTimer usb_timer;
+extern bool processing_tcode;
 extern bool homing_flag;
 extern bool loading_flag;
-extern unsigned long total_filament_used;
-void save_statistics(unsigned long _total_filament_used, unsigned long _total_print_time);
-extern uint8_t heating_status_counter;
+extern uint32_t total_filament_used; // mm/100 or 10um
 
-extern bool fan_state[2];
+/// @brief Save print statistics to EEPROM
+/// @param _total_filament_used has unit mm/100 or 10um
+/// @param _total_print_time has unit minutes, for example 123 minutes
+void save_statistics(uint32_t _total_filament_used, uint32_t _total_print_time);
+
 extern int fan_edge_counter[2];
 extern int fan_speed[2];
 
-// Handling multiple extruders pins
-extern uint8_t active_extruder;
-
-//Long pause
-extern unsigned long pause_time;
-extern unsigned long start_pause_print;
-extern unsigned long t_fan_rising_edge;
+// Active extruder becomes a #define to make the whole firmware compilable.
+// We may even remove the references to it wherever possible in the future
+#define active_extruder 0
 
 extern bool mesh_bed_leveling_flag;
 
@@ -334,10 +304,7 @@ extern uint8_t saved_printing_type;
 
 extern float saved_extruder_temperature; //!< Active extruder temperature
 extern float saved_bed_temperature; //!< Bed temperature
-extern int saved_fan_speed; //!< Print fan speed
-
-//save/restore printing in case that mmu is not responding
-extern bool mmu_print_saved;
+extern uint8_t saved_fan_speed; //!< Print fan speed, ranges from 0 to 255
 
 //estimated time to end of the print
 extern uint8_t print_percent_done_normal;
@@ -349,14 +316,15 @@ extern uint16_t print_time_to_change_silent;
 
 #define PRINT_TIME_REMAINING_INIT 0xffff
 
-extern uint16_t mcode_in_progress;
-extern uint16_t gcode_in_progress;
-
 extern LongTimer safetyTimer;
 
 #define PRINT_PERCENT_DONE_INIT 0xff
 
-extern bool printer_active();
+// Returns true if there is a print running. It does not matter if
+// the print is paused, that still counts as a "running" print.
+bool printJobOngoing();
+
+bool printer_active();
 
 //! Beware - mcode_in_progress is set as soon as the command gets really processed,
 //! which is not the same as posting the M600 command into the command queue
@@ -365,7 +333,22 @@ extern bool printer_active();
 //! Instead, the fsensor uses another state variable :( , which is set to true, when the M600 command is enqued
 //! and is reset to false when the fsensor returns into its filament runout finished handler
 //! I'd normally change this macro, but who knows what would happen in the MMU :)
-#define CHECK_FSENSOR ((IS_SD_PRINTING || usb_timer.running()) && (mcode_in_progress != 600) && !saved_printing && e_active())
+bool check_fsensor();
+
+//! Condition where Babystepping is allowed:
+//! 1) Not allowed during Homing (printer busy)
+//! 2) Not allowed during Mesh Bed Leveling (printer busy)
+//! 3) Not allowed when a print job is paused
+//! 4) Allowed if:
+//!         - First Layer Calibration is running (the event when heaters are turned off is used to dismiss the menu)
+//!         - A print job is running
+//!         - If the printer is idle with not planned moves
+bool babystep_allowed();
+
+//! Same as babystep_allowed() but additionally adds a requirement
+//! where the Z-axis position must be less than 2.0mm (only allowed
+//! during the first couple of layers)
+bool babystep_allowed_strict();
 
 extern void calculate_extruder_multipliers();
 
@@ -402,19 +385,15 @@ void uvlo_tiny();
 void recover_print(uint8_t automatic); 
 void setup_uvlo_interrupt();
 
-#if defined(TACH_1) && TACH_1 >-1
-void setup_fan_interrupt();
-#endif
-
 extern bool recover_machine_state_after_power_panic();
 extern void restore_print_from_eeprom(bool mbl_was_active);
-extern void position_menu();
 
 extern void print_world_coordinates();
 extern void print_physical_coordinates();
 extern void print_mesh_bed_leveling_table();
 
 extern void stop_and_save_print_to_ram(float z_move, float e_move);
+void restore_extruder_temperature_from_ram();
 extern void restore_print_from_ram_and_continue(float e_move);
 extern void cancel_saved_printing();
 
@@ -463,7 +442,7 @@ void gcode_M114();
 #if (defined(FANCHECK) && (((defined(TACH_0) && (TACH_0 >-1)) || (defined(TACH_1) && (TACH_1 > -1)))))
 void gcode_M123();
 #endif //FANCHECK and TACH_0 and TACH_1
-void gcode_M701();
+void gcode_M701(float fastLoadLength, uint8_t mmuSlotIndex);
 
 #define UVLO !(PINE & (1<<4))
 
@@ -474,7 +453,8 @@ void M600_wait_for_user(float HotendTempBckp);
 void M600_check_state(float nozzle_temp);
 void load_filament_final_feed();
 void marlin_wait_for_click();
-void raise_z_above(float target, bool plan=true);
+float raise_z(float delta);
+void raise_z_above(float target);
 
 extern "C" void softReset();
 void stack_error();

@@ -346,6 +346,11 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 // 2nd and 3rd byte (LSB first) contains a 16bit length of a command including its preceding comments.
 #define CMDHDRSIZE 3
 
+#define FILAMENT_CHANGE_UNLOAD_FEEDRATE         10.f  // (mm/s) Unload filament feedrate. This can be pretty fast.
+#define FILAMENT_UNLOAD_FAST_RETRACT_FEEDRATE   86.67f  // (mm/s) Unload fast retract feedrate.
+#define FILAMENT_UNLOAD_SLOW_RETRACT_FEEDRATE   16.67f  // (mm/s) Unload slow retract feedrate.
+#define FILAMENT_UNLOAD_FAST_RETRACT_LENGTH     45.f  // (mm) Unload fast retract length.
+#define FILAMENT_UNLOAD_SLOW_RETRACT_LENGTH     35.f  // (mm) Unload slow retract length.
 
 // Firmware based and LCD controlled retract
 // M207 and M208 can be used to define parameters for the retraction.
@@ -397,14 +402,6 @@ const unsigned int dropsegments=5; //everything with less than this number of st
   #define THERMISTORHEATER_0 TEMP_SENSOR_0
   #define HEATER_0_USES_THERMISTOR
 #endif
-#if TEMP_SENSOR_1 > 0
-  #define THERMISTORHEATER_1 TEMP_SENSOR_1
-  #define HEATER_1_USES_THERMISTOR
-#endif
-#if TEMP_SENSOR_2 > 0
-  #define THERMISTORHEATER_2 TEMP_SENSOR_2
-  #define HEATER_2_USES_THERMISTOR
-#endif
 #if TEMP_SENSOR_BED > 0
   #define THERMISTORBED TEMP_SENSOR_BED
   #define BED_USES_THERMISTOR
@@ -418,12 +415,6 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 #if TEMP_SENSOR_0 == -1
   #define HEATER_0_USES_AD595
 #endif
-#if TEMP_SENSOR_1 == -1
-  #define HEATER_1_USES_AD595
-#endif
-#if TEMP_SENSOR_2 == -1
-  #define HEATER_2_USES_AD595
-#endif
 #if TEMP_SENSOR_BED == -1
   #define BED_USES_AD595
 #endif
@@ -433,14 +424,6 @@ const unsigned int dropsegments=5; //everything with less than this number of st
 #if TEMP_SENSOR_0 == 0
   #undef HEATER_0_MINTEMP
   #undef HEATER_0_MAXTEMP
-#endif
-#if TEMP_SENSOR_1 == 0
-  #undef HEATER_1_MINTEMP
-  #undef HEATER_1_MAXTEMP
-#endif
-#if TEMP_SENSOR_2 == 0
-  #undef HEATER_2_MINTEMP
-  #undef HEATER_2_MAXTEMP
 #endif
 #if TEMP_SENSOR_BED == 0
   #undef BED_MINTEMP

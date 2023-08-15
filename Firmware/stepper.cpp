@@ -36,12 +36,9 @@
 #include "tmc2130.h"
 #endif //TMC2130
 
-#if defined(FILAMENT_SENSOR) && defined(PAT9125)
-#include "fsensor.h"
-int fsensor_counter; //counter for e-steps
-#endif //FILAMENT_SENSOR
+#include "Filament_sensor.h"
 
-#include "mmu.h"
+#include "mmu2.h"
 #include "ConfigurationStore.h"
 
 #include "Prusa_farm.h"
@@ -219,9 +216,7 @@ void checkHitEndstops()
      card.sdprinting = false;
      card.closefile();
      quickStop();
-     setTargetHotend0(0);
-     setTargetHotend1(0);
-     setTargetHotend2(0);
+     setTargetHotend(0);
    }
 #endif
  }
@@ -457,9 +452,6 @@ FORCE_INLINE void stepper_next_block()
 #endif /* LIN_ADVANCE */
       count_direction[E_AXIS] = 1;
     }
-#if defined(FILAMENT_SENSOR) && defined(PAT9125)
-    fsensor_st_block_begin(count_direction[E_AXIS] < 0);
-#endif //FILAMENT_SENSOR
   }
   else {
       _NEXT_ISR(2000); // 1kHz.
@@ -704,9 +696,9 @@ FORCE_INLINE void stepper_tick_lowres()
 #ifdef LIN_ADVANCE
       e_steps += count_direction[E_AXIS];
 #else
-	#ifdef FILAMENT_SENSOR
-	  fsensor_counter += count_direction[E_AXIS];
-	#endif //FILAMENT_SENSOR
+#if defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_PAT9125)
+      fsensor.stStep(count_direction[E_AXIS] < 0);
+#endif //defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_PAT9125)
       STEP_NC_LO(E_AXIS);
 #endif
     }
@@ -766,9 +758,9 @@ FORCE_INLINE void stepper_tick_highres()
 #ifdef LIN_ADVANCE
       e_steps += count_direction[E_AXIS];
 #else
-    #ifdef FILAMENT_SENSOR
-      fsensor_counter += count_direction[E_AXIS];
-    #endif //FILAMENT_SENSOR
+#if defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_PAT9125)
+      fsensor.stStep(count_direction[E_AXIS] < 0);
+#endif //defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_PAT9125)
       STEP_NC_LO(E_AXIS);
 #endif
     }
@@ -963,21 +955,9 @@ FORCE_INLINE void isr() {
 
     // If current block is finished, reset pointer
     if (step_events_completed.wide >= current_block->step_event_count.wide) {
-#if !defined(LIN_ADVANCE) && defined(FILAMENT_SENSOR)
-		fsensor_st_block_chunk(fsensor_counter);
-		fsensor_counter = 0;
-#endif //FILAMENT_SENSOR
-
       current_block = NULL;
       plan_discard_current_block();
     }
-#if !defined(LIN_ADVANCE) && defined(FILAMENT_SENSOR)
-	else if ((abs(fsensor_counter) >= fsensor_chunk_len))
-  	{
-      fsensor_st_block_chunk(fsensor_counter);
-  	  fsensor_counter = 0;
-  	}
-#endif //FILAMENT_SENSOR
   }
 
 #ifdef TMC2130
@@ -1073,19 +1053,11 @@ FORCE_INLINE void advance_isr_scheduler() {
             STEP_NC_HI(E_AXIS);
             e_steps += (rev? 1: -1);
             STEP_NC_LO(E_AXIS);
-#if defined(FILAMENT_SENSOR) && defined(PAT9125)
-            fsensor_counter += (rev? -1: 1);
-#endif
+#if defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_PAT9125)
+            fsensor.stStep(rev);
+#endif //defined(FILAMENT_SENSOR) && (FILAMENT_SENSOR_TYPE == FSENSOR_PAT9125)
         }
         while(--max_ticks);
-
-#if defined(FILAMENT_SENSOR) && defined(PAT9125)
-        if (abs(fsensor_counter) >= fsensor_chunk_len)
-        {
-            fsensor_st_block_chunk(fsensor_counter);
-            fsensor_counter = 0;
-        }
-#endif
     }
 
     // Schedule the next closest tick, ignoring advance if scheduled too
@@ -1101,10 +1073,10 @@ void st_init()
 {
 #ifdef TMC2130
 	tmc2130_init(TMCInitParams(false, FarmOrUserECool()));
-#endif //TMC2130
-
+#else
   st_current_init(); //Initialize Digipot Motor Current
   microstep_init(); //Initialize Microstepping Pins
+#endif //TMC2130
 
   //Initialize Dir Pins
   #if defined(X_DIR_PIN) && X_DIR_PIN > -1
@@ -1129,12 +1101,6 @@ void st_init()
   #endif
   #if defined(E0_DIR_PIN) && E0_DIR_PIN > -1
     SET_OUTPUT(E0_DIR_PIN);
-  #endif
-  #if defined(E1_DIR_PIN) && (E1_DIR_PIN > -1)
-    SET_OUTPUT(E1_DIR_PIN);
-  #endif
-  #if defined(E2_DIR_PIN) && (E2_DIR_PIN > -1)
-    SET_OUTPUT(E2_DIR_PIN);
   #endif
 
   //Initialize Enable Pins - steppers default to disabled.
@@ -1168,14 +1134,6 @@ void st_init()
   #if defined(E0_ENABLE_PIN) && (E0_ENABLE_PIN > -1)
     SET_OUTPUT(E0_ENABLE_PIN);
     if(!E_ENABLE_ON) WRITE(E0_ENABLE_PIN,HIGH);
-  #endif
-  #if defined(E1_ENABLE_PIN) && (E1_ENABLE_PIN > -1)
-    SET_OUTPUT(E1_ENABLE_PIN);
-    if(!E_ENABLE_ON) WRITE(E1_ENABLE_PIN,HIGH);
-  #endif
-  #if defined(E2_ENABLE_PIN) && (E2_ENABLE_PIN > -1)
-    SET_OUTPUT(E2_ENABLE_PIN);
-    if(!E_ENABLE_ON) WRITE(E2_ENABLE_PIN,HIGH);
   #endif
 
   //endstops and pullups
@@ -1274,16 +1232,6 @@ void st_init()
     WRITE(E0_STEP_PIN,INVERT_E_STEP_PIN);
     disable_e0();
   #endif
-  #if defined(E1_STEP_PIN) && (E1_STEP_PIN > -1)
-    SET_OUTPUT(E1_STEP_PIN);
-    WRITE(E1_STEP_PIN,INVERT_E_STEP_PIN);
-    disable_e1();
-  #endif
-  #if defined(E2_STEP_PIN) && (E2_STEP_PIN > -1)
-    SET_OUTPUT(E2_STEP_PIN);
-    WRITE(E2_STEP_PIN,INVERT_E_STEP_PIN);
-    disable_e2();
-  #endif
 
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -1359,10 +1307,8 @@ void st_synchronize()
 			lcd_update(0);
 		}
 #else //TMC2130
-		manage_heater();
 		// Vojtech: Don't disable motors inside the planner!
-		manage_inactivity(true);
-		lcd_update(0);
+		delay_keep_alive(0);
 #endif //TMC2130
 	}
 }
@@ -1543,6 +1489,7 @@ void digitalPotWrite(int address, int value) // From Arduino DigitalPotControl e
 }
 #endif
 
+#ifndef TMC2130
 void st_current_init() //Initialize Digipot Motor Current
 {
 #ifdef MOTOR_CURRENT_PWM_XY_PIN
@@ -1571,8 +1518,6 @@ void st_current_init() //Initialize Digipot Motor Current
     TCCR5B = (TCCR5B & ~(_BV(CS50) | _BV(CS51) | _BV(CS52))) | _BV(CS50);
 #endif
 }
-
-
 
 #ifdef MOTOR_CURRENT_PWM_XY_PIN
 void st_current_set(uint8_t driver, int current)
@@ -1606,9 +1551,6 @@ void microstep_init()
   for(int i=0;i<=4;i++) microstep_mode(i,microstep_modes[i]);
   #endif
 }
-
-
-#ifndef TMC2130
 
 void microstep_ms(uint8_t driver, int8_t ms1, int8_t ms2)
 {
@@ -1667,14 +1609,4 @@ void microstep_readings()
       SERIAL_PROTOCOLLN( READ(E1_MS2_PIN));
       #endif
 }
-#endif //TMC2130
-
-
-#if defined(FILAMENT_SENSOR) && defined(PAT9125)
-void st_reset_fsensor()
-{
-    CRITICAL_SECTION_START;
-    fsensor_counter = 0;
-    CRITICAL_SECTION_END;
-}
-#endif //FILAMENT_SENSOR
+#endif //!TMC2130

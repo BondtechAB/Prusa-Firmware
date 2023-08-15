@@ -240,132 +240,91 @@ void update_current_firmware_version_to_eeprom()
     eeprom_update_word((uint16_t*)EEPROM_FIRMWARE_VERSION_FLAVOR,   (uint16_t)pgm_read_word(&FW_VERSION_NR[3]));
 }
 
+ClNozzleDiameter oNozzleDiameter;
+ClCheckMode oCheckMode;
+ClCheckModel oCheckModel;
+ClCheckVersion oCheckVersion;
+ClCheckGcode oCheckGcode;
 
-#define MSG_PRINT_CHECKING_FAILED_TIMEOUT 30
+void fCheckModeInit() {
+    oCheckMode = (ClCheckMode)eeprom_init_default_byte((uint8_t *)EEPROM_CHECK_MODE, (uint8_t)ClCheckMode::_Warn);
 
-ClNozzleDiameter oNozzleDiameter=ClNozzleDiameter::_Diameter_400;
-ClCheckMode oCheckMode=ClCheckMode::_None;
-ClCheckModel oCheckModel=ClCheckModel::_None;
-ClCheckVersion oCheckVersion=ClCheckVersion::_None;
-ClCheckGcode oCheckGcode=ClCheckGcode::_None;
+    if (farm_mode) {
+        oCheckMode = ClCheckMode::_Strict;
+        eeprom_update_byte((uint8_t *)EEPROM_CHECK_MODE, (uint8_t)ClCheckMode::_Strict);
+    }
 
-void fCheckModeInit()
-{
-oCheckMode=(ClCheckMode)eeprom_read_byte((uint8_t*)EEPROM_CHECK_MODE);
-if(oCheckMode==ClCheckMode::_Undef)
-     {
-     oCheckMode=ClCheckMode::_Warn;
-     eeprom_update_byte((uint8_t*)EEPROM_CHECK_MODE,(uint8_t)oCheckMode);
-     }
-if(farm_mode)
-     {
-     oCheckMode=ClCheckMode::_Strict;
-     if(eeprom_read_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM)==EEPROM_EMPTY_VALUE16)
-          eeprom_update_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM,EEPROM_NOZZLE_DIAMETER_uM_DEFAULT);
-     }
-oNozzleDiameter=(ClNozzleDiameter)eeprom_read_byte((uint8_t*)EEPROM_NOZZLE_DIAMETER);
-if((oNozzleDiameter==ClNozzleDiameter::_Diameter_Undef)&& !farm_mode)
-     {
-     oNozzleDiameter=ClNozzleDiameter::_Diameter_400;
-     eeprom_update_byte((uint8_t*)EEPROM_NOZZLE_DIAMETER,(uint8_t)oNozzleDiameter);
-     eeprom_update_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM,EEPROM_NOZZLE_DIAMETER_uM_DEFAULT);
-     }
-oCheckModel=(ClCheckModel)eeprom_read_byte((uint8_t*)EEPROM_CHECK_MODEL);
-if(oCheckModel==ClCheckModel::_Undef)
-     {
-     oCheckModel=ClCheckModel::_Warn;
-     eeprom_update_byte((uint8_t*)EEPROM_CHECK_MODEL,(uint8_t)oCheckModel);
-     }
-oCheckVersion=(ClCheckVersion)eeprom_read_byte((uint8_t*)EEPROM_CHECK_VERSION);
-if(oCheckVersion==ClCheckVersion::_Undef)
-     {
-     oCheckVersion=ClCheckVersion::_Warn;
-     eeprom_update_byte((uint8_t*)EEPROM_CHECK_VERSION,(uint8_t)oCheckVersion);
-     }
-oCheckGcode=(ClCheckGcode)eeprom_read_byte((uint8_t*)EEPROM_CHECK_GCODE);
-if(oCheckGcode==ClCheckGcode::_Undef)
-     {
-     oCheckGcode=ClCheckGcode::_Warn;
-     eeprom_update_byte((uint8_t*)EEPROM_CHECK_GCODE,(uint8_t)oCheckGcode);
-     }
+    oNozzleDiameter = (ClNozzleDiameter)eeprom_init_default_byte((uint8_t *)EEPROM_NOZZLE_DIAMETER, (uint8_t)ClNozzleDiameter::_Diameter_400);
+    eeprom_init_default_word((uint16_t *)EEPROM_NOZZLE_DIAMETER_uM, EEPROM_NOZZLE_DIAMETER_uM_DEFAULT);
+
+    oCheckModel = (ClCheckModel)eeprom_init_default_byte((uint8_t *)EEPROM_CHECK_MODEL, (uint8_t)ClCheckModel::_Warn);
+    oCheckVersion = (ClCheckVersion)eeprom_init_default_byte((uint8_t *)EEPROM_CHECK_VERSION, (uint8_t)ClCheckVersion::_Warn);
+    oCheckGcode = (ClCheckGcode)eeprom_init_default_byte((uint8_t *)EEPROM_CHECK_GCODE, (uint8_t)ClCheckGcode::_Warn);
 }
 
-void nozzle_diameter_check(uint16_t nDiameter)
+static void render_M862_warnings(const char* warning, const char* strict, uint8_t check)
 {
-uint16_t nDiameter_um;
-
-if(oCheckMode==ClCheckMode::_None)
-     return;
-nDiameter_um=eeprom_read_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM);
-if(nDiameter==nDiameter_um)
-     return;
-//SERIAL_ECHO_START;
-//SERIAL_ECHOLNPGM("Printer nozzle diameter differs from the G-code ...");
-//SERIAL_ECHOPGM("actual  : ");
-//SERIAL_ECHOLN((float)(nDiameter_um/1000.0));
-//SERIAL_ECHOPGM("expected: ");
-//SERIAL_ECHOLN((float)(nDiameter/1000.0));
-switch(oCheckMode)
-     {
-     case ClCheckMode::_Warn:
-//          lcd_show_fullscreen_message_and_wait_P(_i("Printer nozzle diameter differs from the G-code. Continue?"));
-lcd_display_message_fullscreen_P(_i("Printer nozzle diameter differs from the G-code. Continue?"));////MSG_NOZZLE_DIFFERS_CONTINUE c=20 r=5
-lcd_wait_for_click_delay(MSG_PRINT_CHECKING_FAILED_TIMEOUT);
-//???custom_message_type=CUSTOM_MSG_TYPE_STATUS; // display / status-line recovery
-lcd_update_enable(true);           // display / status-line recovery
-          break;
-     case ClCheckMode::_Strict:
-          lcd_show_fullscreen_message_and_wait_P(_i("Printer nozzle diameter differs from the G-code. Please check the value in settings. Print cancelled."));////MSG_NOZZLE_DIFFERS_CANCELLED c=20 r=9
-          lcd_print_stop();
-          break;
-     case ClCheckMode::_None:
-     case ClCheckMode::_Undef:
-          break;
-     }
-if(!farm_mode)
-     {
-     bSettings=false;                             // flag ('fake parameter') for 'lcd_hw_setup_menu()' function
-     menu_submenu(lcd_hw_setup_menu);
-     }
+    if (check == 1) { // Warning, stop print if user selects 'No'
+        if (lcd_show_fullscreen_message_yes_no_and_wait_P(warning, true, LCD_LEFT_BUTTON_CHOICE) == LCD_MIDDLE_BUTTON_CHOICE) {
+            lcd_print_stop();
+        }
+    } else if (check == 2) { // Strict, always stop print
+        lcd_show_fullscreen_message_and_wait_P(strict);
+        lcd_print_stop();
+    }
 }
 
-void printer_model_check(uint16_t nPrinterModel)
-{
-if(oCheckModel==ClCheckModel::_None)
-     return;
-if(nPrinterModel==nPrinterType)
-     return;
-//SERIAL_ECHO_START;
-//SERIAL_ECHOLNPGM("Printer model differs from the G-code ...");
-//SERIAL_ECHOPGM("actual  : ");
-//SERIAL_ECHOLN(nPrinterType);
-//SERIAL_ECHOPGM("expected: ");
-//SERIAL_ECHOLN(nPrinterModel);
-switch(oCheckModel)
-     {
-     case ClCheckModel::_Warn:
-//          lcd_show_fullscreen_message_and_wait_P(_i("Printer model differs from the G-code. Continue?"));
-lcd_display_message_fullscreen_P(_T(MSG_GCODE_DIFF_PRINTER_CONTINUE));
-lcd_wait_for_click_delay(MSG_PRINT_CHECKING_FAILED_TIMEOUT);
-//???custom_message_type=CUSTOM_MSG_TYPE_STATUS; // display / status-line recovery
-lcd_update_enable(true);           // display / status-line recovery
-          break;
-     case ClCheckModel::_Strict:
-          lcd_show_fullscreen_message_and_wait_P(_T(MSG_GCODE_DIFF_PRINTER_CANCELLED));
-          lcd_print_stop();
-          break;
-     case ClCheckModel::_None:
-     case ClCheckModel::_Undef:
-          break;
-     }
+void nozzle_diameter_check(uint16_t nDiameter) {
+    uint16_t nDiameter_um;
+
+    if (oCheckMode == ClCheckMode::_None)
+        return;
+    nDiameter_um = eeprom_read_word((uint16_t *)EEPROM_NOZZLE_DIAMETER_uM);
+    if (nDiameter == nDiameter_um)
+        return;
+    // SERIAL_ECHO_START;
+    // SERIAL_ECHOLNPGM("Printer nozzle diameter differs from the G-code ...");
+    // SERIAL_ECHOPGM("actual  : ");
+    // SERIAL_ECHOLN((float)(nDiameter_um/1000.0));
+    // SERIAL_ECHOPGM("expected: ");
+    // SERIAL_ECHOLN((float)(nDiameter/1000.0));
+
+    render_M862_warnings(
+        _T(MSG_NOZZLE_DIFFERS_CONTINUE)
+        ,_T(MSG_NOZZLE_DIFFERS_CANCELLED)
+        ,(uint8_t)oCheckMode
+    );
+
+    if (!farm_mode) {
+        bSettings = false; // flag ('fake parameter') for 'lcd_hw_setup_menu()' function
+        menu_submenu(lcd_hw_setup_menu);
+    }
+}
+
+void printer_model_check(uint16_t nPrinterModel, uint16_t actualPrinterModel) {
+    if (oCheckModel == ClCheckModel::_None)
+        return;
+    if (nPrinterModel == actualPrinterModel)
+        return;
+    // SERIAL_ECHO_START;
+    // SERIAL_ECHOLNPGM("Printer model differs from the G-code ...");
+    // SERIAL_ECHOPGM("actual  : ");
+    // SERIAL_ECHOLN(actualPrinterModel);
+    // SERIAL_ECHOPGM("expected: ");
+    // SERIAL_ECHOLN(nPrinterModel);
+    render_M862_warnings(
+        _T(MSG_GCODE_DIFF_PRINTER_CONTINUE)
+        ,_T(MSG_GCODE_DIFF_PRINTER_CANCELLED)
+        ,(uint8_t)oCheckModel
+    );
 }
 
 uint8_t mCompareValue(uint16_t nX, uint16_t nY) {
-if(nX>nY)
-     return((uint8_t)ClCompareValue::_Greater);
-if(nX<nY)
-     return((uint8_t)ClCompareValue::_Less);
-return((uint8_t)ClCompareValue::_Equal);
+    if (nX > nY)
+        return ((uint8_t)ClCompareValue::_Greater);
+    if (nX < nY)
+        return ((uint8_t)ClCompareValue::_Less);
+    return ((uint8_t)ClCompareValue::_Equal);
 }
 
 void fw_version_check(const char *pVersion) {
@@ -402,23 +361,12 @@ void fw_version_check(const char *pVersion) {
     SERIAL_ECHO('.');
     SERIAL_ECHOLN(aVersion[3]);
 */
-    switch (oCheckVersion) {
-    case ClCheckVersion::_Warn:
-        //          lcd_show_fullscreen_message_and_wait_P(_i("Printer FW version differs from the G-code. Continue?"));
-        lcd_display_message_fullscreen_P(_i("G-code sliced for a newer firmware. Continue?")); ////MSG_GCODE_NEWER_FIRMWARE_CONTINUE c=20 r=5
-        lcd_wait_for_click_delay(MSG_PRINT_CHECKING_FAILED_TIMEOUT);
-        //???custom_message_type=CUSTOM_MSG_TYPE_STATUS; // display / status-line recovery
-        lcd_update_enable(true); // display / status-line recovery
-        break;
-    case ClCheckVersion::_Strict:
-        lcd_show_fullscreen_message_and_wait_P(
-            _i("G-code sliced for a newer firmware. Please update the firmware. Print cancelled.")); ////MSG_GCODE_NEWER_FIRMWARE_CANCELLED c=20 r=8
-        lcd_print_stop();
-        break;
-    case ClCheckVersion::_None:
-    case ClCheckVersion::_Undef:
-        break;
-    }
+
+    render_M862_warnings(
+        _T(MSG_GCODE_NEWER_FIRMWARE_CONTINUE)
+        ,_T(MSG_GCODE_NEWER_FIRMWARE_CANCELLED)
+        ,(uint8_t)oCheckVersion
+    );
 }
 
 void gcode_level_check(uint16_t nGcodeLevel) {
@@ -433,32 +381,17 @@ void gcode_level_check(uint16_t nGcodeLevel) {
     // SERIAL_ECHOLN(GCODE_LEVEL);
     // SERIAL_ECHOPGM("expected: ");
     // SERIAL_ECHOLN(nGcodeLevel);
-    switch (oCheckGcode) {
-    case ClCheckGcode::_Warn:
-        //          lcd_show_fullscreen_message_and_wait_P(_i("Printer G-code level differs from the G-code. Continue?"));
-        lcd_display_message_fullscreen_P(_i("G-code sliced for a different level. Continue?")); ////MSG_GCODE_DIFF_CONTINUE c=20 r=4
-        lcd_wait_for_click_delay(MSG_PRINT_CHECKING_FAILED_TIMEOUT);
-        //???custom_message_type=CUSTOM_MSG_TYPE_STATUS; // display / status-line recovery
-        lcd_update_enable(true); // display / status-line recovery
-        break;
-    case ClCheckGcode::_Strict:
-        lcd_show_fullscreen_message_and_wait_P(
-            _i("G-code sliced for a different level. Please re-slice the model again. Print cancelled.")); ////MSG_GCODE_DIFF_CANCELLED c=20 r=7
-        lcd_print_stop();
-        break;
-    case ClCheckGcode::_None:
-    case ClCheckGcode::_Undef:
-        break;
-    }
+
+    render_M862_warnings(
+        _T(MSG_GCODE_DIFF_CONTINUE)
+        ,_T(MSG_GCODE_DIFF_CANCELLED)
+        ,(uint8_t)oCheckGcode
+    );
 }
 
-//-// -> cmdqueue ???
-#define PRINTER_NAME_LENGTH ((sizeof(PRINTER_MMU_NAME)>sizeof(PRINTER_NAME))?(sizeof(PRINTER_MMU_NAME)-1):(sizeof(PRINTER_NAME)-1))
 #define GCODE_DELIMITER '"'
-#define ELLIPSIS "..."
 
-char* code_string(const char* pStr,size_t* nLength)
-{
+char *code_string(const char *pStr, size_t *nLength) {
 char* pStrBegin;
 char* pStrEnd;
 
@@ -473,49 +406,44 @@ if(!pStrEnd)
 return pStrBegin;
 }
 
-void printer_smodel_check(const char* pStrPos)
-{
-char* pResult;
-size_t nLength,nPrinterNameLength;
+void printer_smodel_check(const char *pStrPos, const char *actualPrinterSModel) {
+    char* pResult;
+    size_t nLength;
+    size_t aLength;
 
-nPrinterNameLength = strlen_P(sPrinterName);
-pResult = code_string(pStrPos,&nLength);
+    pResult=code_string(pStrPos,&nLength);
+    if(pResult != NULL) {
+        aLength=strlen_P(actualPrinterSModel);
+        if(aLength > nLength) nLength = aLength;
 
-if(pResult != NULL && nLength == nPrinterNameLength) {
-     // Only compare them if the lengths match
-     if (strncmp_P(pResult, sPrinterName, nLength) == 0) return;
+        // Only compare first 6 chars on MK3|MK3S if string longer than 4 characters
+        if (nLength > 4 && strncmp_P(pResult, PSTR("MK3"), 3) == 0) nLength = 6;
+        if (strncmp_P(pResult, actualPrinterSModel, nLength) == 0) return;
+    }
+
+    render_M862_warnings(
+        _T(MSG_GCODE_DIFF_PRINTER_CONTINUE)
+        ,_T(MSG_GCODE_DIFF_PRINTER_CANCELLED)
+        ,(uint8_t)oCheckModel
+    );
 }
 
-switch(oCheckModel)
-     {
-     case ClCheckModel::_Warn:
-//          lcd_show_fullscreen_message_and_wait_P(_i("Printer model differs from the G-code. Continue?"));
-lcd_display_message_fullscreen_P(_T(MSG_GCODE_DIFF_PRINTER_CONTINUE));
-lcd_wait_for_click_delay(MSG_PRINT_CHECKING_FAILED_TIMEOUT);
-//???custom_message_type=CUSTOM_MSG_TYPE_STATUS; // display / status-line recovery
-lcd_update_enable(true);           // display / status-line recovery
-          break;
-     case ClCheckModel::_Strict:
-          lcd_show_fullscreen_message_and_wait_P(_T(MSG_GCODE_DIFF_PRINTER_CANCELLED));
-          lcd_print_stop();
-          break;
-     case ClCheckModel::_None:
-     case ClCheckModel::_Undef:
-          break;
-     }
+uint16_t nPrinterType(bool bMMu) {
+    if (bMMu) {
+        return pgm_read_word(&_nPrinterMmuType);
+    }
+    else {
+        return pgm_read_word(&_nPrinterType);
+    }
 }
 
-void fSetMmuMode(bool bMMu)
-{
-if(bMMu)
-     {
-     nPrinterType=pgm_read_word(&_nPrinterMmuType);
-     sPrinterName=_sPrinterMmuName;
-     }
-else {
-     nPrinterType=pgm_read_word(&_nPrinterType);
-     sPrinterName=_sPrinterName;
-     }
+const char *sPrinterType(bool bMMu) {
+    if (bMMu) {
+        return _sPrinterMmuName;
+    }
+    else {
+        return _sPrinterName;
+    }
 }
 
 void ip4_to_str(char* dest, uint8_t* IP)

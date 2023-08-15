@@ -1,6 +1,6 @@
 //xyzcal.cpp - xyz calibration with image processing
 
-#include "Configuration_prusa.h"
+#include "Configuration_var.h"
 #ifdef NEW_XYZCAL
 
 #include "xyzcal.h"
@@ -135,9 +135,9 @@ pos_mm_t pos_2_mm(float pos){
 	return pos * 0.01f;
 }
 
-void xyzcal_meassure_center(void)
+void xyzcal_measure_enter(void)
 {
-	DBG(_n("xyzcal_meassure_center\n"));
+	DBG(_n("xyzcal_measure_enter\n"));
 	lcd_puts_at_P(4,3,PSTR("Measure center  ")); ////MSG_MEASURE_CENTER c=16
 	// disable heaters and stop motion before we initialize sm4
 	disable_heater();
@@ -155,9 +155,9 @@ void xyzcal_meassure_center(void)
 	sm4_calc_delay_cb = xyzcal_calc_delay;
 }
 
-void xyzcal_meassure_leave(void)
+void xyzcal_measure_leave(void)
 {
-	DBG(_n("xyzcal_meassure_leave\n"));
+	DBG(_n("xyzcal_measure_leave\n"));
 	lcd_set_cursor(4,3);
 	lcd_space(16);
 
@@ -344,10 +344,10 @@ bool xyzcal_spiral8(int16_t cx, int16_t cy, int16_t z0, int16_t dz, int16_t radi
 	return ret;
 }
 
-#ifdef XYZCAL_MEASSURE_PINDA_HYSTEREZIS
-int8_t xyzcal_meassure_pinda_hysterezis(int16_t min_z, int16_t max_z, uint16_t delay_us, uint8_t samples)
+#ifdef XYZCAL_MEASURE_PINDA_HYSTERESIS
+int8_t xyzcal_measure_pinda_hysteresis(int16_t min_z, int16_t max_z, uint16_t delay_us, uint8_t samples)
 {
-	DBG(_n("xyzcal_meassure_pinda_hysterezis\n"));
+	DBG(_n("xyzcal_measure_pinda_hysteresis\n"));
 	int8_t ret = -1; // PINDA signal error
 	int16_t z = _Z;
 	int16_t sum_up = 0;
@@ -384,7 +384,7 @@ int8_t xyzcal_meassure_pinda_hysterezis(int16_t min_z, int16_t max_z, uint16_t d
 			if (abs(up - dn) > XYZCAL_PINDA_HYST_DIF)
 				ret = -2; // difference between up-dn to high
 			else if ((hyst < XYZCAL_PINDA_HYST_MIN) || (hyst > XYZCAL_PINDA_HYST_MAX))
-				ret = -3; // hysterezis out of range
+				ret = -3; // hysteresis out of range
 			else
 				ret = hyst;
 		}
@@ -392,7 +392,7 @@ int8_t xyzcal_meassure_pinda_hysterezis(int16_t min_z, int16_t max_z, uint16_t d
 	xyzcal_lineXYZ_to(_X, _Y, z, delay_us, 0);
 	return ret;
 }
-#endif //XYZCAL_MEASSURE_PINDA_HYSTEREZIS
+#endif //XYZCAL_MEASURE_PINDA_HYSTERESIS
 
 void print_hysteresis(int16_t min_z, int16_t max_z, int16_t step){
 	int16_t delay_us = 600;
@@ -415,22 +415,20 @@ void print_hysteresis(int16_t min_z, int16_t max_z, int16_t step){
 	}
 }
 
-void update_position_1_step(uint8_t axis, uint8_t dir){
-	if (axis & X_AXIS_MASK)
-		_X_ += dir & X_AXIS_MASK ? -1 : 1;
-	if (axis & Y_AXIS_MASK)
-		_Y_ += dir & Y_AXIS_MASK ? -1 : 1;
-	if (axis & Z_AXIS_MASK)
-		_Z_ += dir & Z_AXIS_MASK ? -1 : 1;
+static void update_position_1_step(const uint8_t axis, const uint8_t dir) {
+	for (uint8_t i = X_AXIS, mask = X_AXIS_MASK; i <= Z_AXIS; i++, mask <<= 1) {
+		if (axis & mask) {
+			count_position[i] += dir & mask ? -1L : 1L;
+		}
+	}
 }
 
-void set_axes_dir(uint8_t axes, uint8_t dir){
-	if (axes & X_AXIS_MASK)
-		sm4_set_dir(X_AXIS, dir & X_AXIS_MASK);
-	if (axes & Y_AXIS_MASK)
-		sm4_set_dir(Y_AXIS, dir & Y_AXIS_MASK);
-	if (axes & Z_AXIS_MASK)
-		sm4_set_dir(Z_AXIS, dir & Z_AXIS_MASK);
+static void __attribute__((noinline)) set_axes_dir(const uint8_t axis, const uint8_t dir) {
+	for (uint8_t i = X_AXIS, mask = X_AXIS_MASK; i <= Z_AXIS; i++, mask <<= 1) {
+		if (axis & mask) {
+			sm4_set_dir(i, dir & mask);
+		}
+	}
 }
 
 /// Accelerate up to max.speed (defined by @min_delay_us)
@@ -553,7 +551,7 @@ void go_manhattan(int16_t x, int16_t y, int16_t z, int16_t acc, uint16_t min_del
 	// DBG(_n("\n"));
 }
 
-void xyzcal_scan_pixels_32x32_Zhop(int16_t cx, int16_t cy, int16_t min_z, int16_t max_z, uint16_t delay_us, uint8_t *pixels){
+void __attribute__((noinline)) xyzcal_scan_pixels_32x32_Zhop(int16_t cx, int16_t cy, int16_t min_z, int16_t max_z, uint16_t delay_us, uint8_t *pixels){
 	if (!pixels)
 		return;
 	int16_t z_trig;

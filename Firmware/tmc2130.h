@@ -16,10 +16,6 @@ extern uint8_t tmc2130_sg_thr[4];
 extern bool tmc2130_sg_stop_on_crash;
 extern uint8_t tmc2130_sg_crash; //crash mask
 
-extern uint8_t tmc2130_sg_meassure;
-extern uint32_t tmc2130_sg_meassure_cnt;
-extern uint32_t tmc2130_sg_meassure_val;
-
 extern uint8_t tmc2130_sg_homing_axes_mask;
 
 extern const char eMotorCurrentScalingEnabled[];
@@ -93,10 +89,10 @@ extern void tmc2130_home_enter(uint8_t axes_mask);
 //exit homing (called from homeaxis after homing ends)
 extern void tmc2130_home_exit();
 
-//start stallguard meassuring for single axis
-extern void tmc2130_sg_meassure_start(uint8_t axis);
-//stop current stallguard meassuring and report result
-extern uint16_t tmc2130_sg_meassure_stop();
+//start stallguard measuring for single axis
+extern void tmc2130_sg_measure_start(uint8_t axis);
+//stop current stallguard measuring and report result
+extern uint16_t tmc2130_sg_measure_stop();
 
 extern void tmc2130_setup_chopper(uint8_t axis, uint8_t mres, uint8_t current_h, uint8_t current_r);
 

@@ -21,19 +21,6 @@ bool show_upgrade_dialog_if_version_newer(const char *version_string);
 bool eeprom_fw_version_older_than_p(const uint16_t (&req_ver)[4]);
 void update_current_firmware_version_to_eeprom();
 
-
-
-inline int8_t eeprom_read_int8(unsigned char* addr) {
-	uint8_t v = eeprom_read_byte(addr);
-	return *reinterpret_cast<int8_t*>(&v);
-}
-
-inline void eeprom_update_int8(unsigned char* addr, int8_t v) {
-	eeprom_update_byte(addr, *reinterpret_cast<uint8_t*>(&v));
-}
-
-
-//-//
 #define EEPROM_NOZZLE_DIAMETER_uM_DEFAULT 400
 
 enum class ClPrintChecking:uint_least8_t
@@ -102,12 +89,13 @@ extern ClCheckGcode oCheckGcode;
 
 void fCheckModeInit();
 void nozzle_diameter_check(uint16_t nDiameter);
-void printer_model_check(uint16_t nPrinterModel);
-void printer_smodel_check(const char* pStrPos);
+void printer_model_check(uint16_t nPrinterModel, uint16_t actualPrinterModel);
+void printer_smodel_check(const char *pStrPos, const char *actualPrinterSModel);
 void fw_version_check(const char *pVersion);
 void gcode_level_check(uint16_t nGcodeLevel);
 
-void fSetMmuMode(bool bMMu);
+uint16_t nPrinterType(bool bMMu);
+const char *sPrinterType(bool bMMu);
 
 #define IP4_STR_SIZE 16
 extern void ip4_to_str(char* dest, uint8_t* IP);
