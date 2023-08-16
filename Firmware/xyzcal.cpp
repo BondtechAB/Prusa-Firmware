@@ -1021,14 +1021,14 @@ BedSkewOffsetDetectionResultType xyzcal_find_bed_induction_sensor_point_xy(void)
   	x = pgm_read_word((uint16_t *)(xyzcal_point_xcoords + point));
   	y = pgm_read_word((uint16_t *)(xyzcal_point_ycoords + point));
   	DBG(_n("point=%d x=%d y=%d z=%d\n"), point, x, y, z);
-	xyzcal_meassure_center();
+	xyzcal_measure_enter();
   	xyzcal_lineXYZ_to(x, y, z, 200, 0);
   	if (xyzcal_searchZ()){
 		int16_t z = _Z;
 		xyzcal_lineXYZ_to(x, y, z, 200, 0);
 		ret = xyzcal_scan_and_process();
   	}
-	xyzcal_meassure_leave();
+	xyzcal_measure_leave();
 	return ret;
 }
 

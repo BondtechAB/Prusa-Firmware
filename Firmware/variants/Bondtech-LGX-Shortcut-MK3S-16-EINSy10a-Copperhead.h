@@ -8,12 +8,12 @@
  *------------------------------------*/
 
 // Printer revision
-#define PRINTER_TYPE PRINTER_MK25S
-#define PRINTER_NAME PRINTER_MK25S_NAME
-#define PRINTER_NAME_ALTERNATE PRINTER_MK25_NAME //the other similar printer to this.
-#define PRINTER_MMU_TYPE PRINTER_MK25S_MMU2
-#define PRINTER_MMU_NAME PRINTER_MK25S_MMU2_NAME
-#define FILAMENT_SIZE "1_75mm_MK25S"
+#define PRINTER_TYPE PRINTER_MK3S
+#define PRINTER_NAME PRINTER_MK3S_NAME
+#define PRINTER_NAME_ALTERNATE PRINTER_MK3_NAME //the other similar printer to this.
+#define PRINTER_MMU_TYPE PRINTER_MK3S_MMU3
+#define PRINTER_MMU_NAME PRINTER_MK3S_MMU3_NAME
+#define FILAMENT_SIZE "1_75mm_MK3S"
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Printer name
@@ -25,7 +25,7 @@
 #define HAS_SECOND_SERIAL_PORT
 
 // PSU
-#define PSU_Delta                                 // uncomment if DeltaElectronics PSU installed
+// #define PSU_Delta                                 // uncomment if DeltaElectronics PSU installed
 
 // Uncomment the below for the E3D PT100 temperature sensor (with or without PT100 Amplifier)
 //#define E3D_PT100_EXTRUDER_WITH_AMP
@@ -54,8 +54,8 @@
 // Direction inverting
 #define INVERT_X_DIR 1    // for Mendel set to 0, for Orca set to 1
 #define INVERT_Y_DIR 0    // for Mendel set to 1, for Orca set to 0
-#define INVERT_Z_DIR 0    // for Mendel set to 0, for Orca set to 1
-#define INVERT_E0_DIR 1    // for direct drive extruder v9 set to 1, for geared extruder set to 0
+#define INVERT_Z_DIR 1     // for Mendel set to 0, for Orca set to 1
+#define INVERT_E0_DIR 0   // for direct drive extruder v9 set to 1, for geared extruder set to 0
 
 // Home position
 #define MANUAL_X_HOME_POS 0
@@ -65,7 +65,7 @@
 // Travel limits after homing
 #define X_MAX_POS 255
 #define X_MIN_POS 0
-#define Y_MAX_POS 206.5
+#define Y_MAX_POS 208.5
 #define Y_MIN_POS -4 //orig -4
 #define Z_MAX_POS 210
 #define Z_MIN_POS 0.15
@@ -150,7 +150,8 @@
 
 // Filament sensor
 #define FILAMENT_SENSOR
-#define FILAMENT_SENSOR_TYPE FSENSOR_IR
+#define FILAMENT_SENSOR_TYPE FSENSOR_IR_ANALOG
+#define FSENSOR_PROBING
 
 // Backlash -
 //#define BACKLASH_X
@@ -649,7 +650,8 @@
 
 #define MMU_CONFIG_FILE "mmu2/variants/config_MMU2S.h"
 #define MMU_FILAMENT_COUNT 5
-#define MMU_FORCE_STEALTH_MODE
+//#define MMU_FORCE_STEALTH_MODE
+#define MMU_HWRESET
 #define MMU_DEBUG //print communication between MMU and printer on serial
 #define MMU_HAS_CUTTER
 
