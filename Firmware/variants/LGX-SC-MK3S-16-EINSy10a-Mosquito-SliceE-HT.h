@@ -17,7 +17,7 @@
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "LGX-SM MK3S"
+#define CUSTOM_MENDEL_NAME "LGX-SM-HT MK3S"
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
@@ -319,7 +319,7 @@
 #if defined(E3D_PT100_EXTRUDER_WITH_AMP) || defined(E3D_PT100_EXTRUDER_NO_AMP)
 #define HEATER_0_MAXTEMP 410
 #else
-#define HEATER_0_MAXTEMP 305
+#define HEATER_0_MAXTEMP 410
 #endif
 #define BED_MAXTEMP 125
 #define AMBIENT_MAXTEMP 100
@@ -363,14 +363,14 @@
 #define FILAMENTCHANGE_YPOS 0
 #define FILAMENTCHANGE_ZADD 2
 #define FILAMENTCHANGE_FIRSTRETRACT -2
-#define FILAMENTCHANGE_FINALRETRACT -40
+#define FILAMENTCHANGE_FINALRETRACT 0
 
-#define FILAMENTCHANGE_FIRSTFEED 40 //E distance in mm for fast filament loading sequence used used in filament change (M600)
-#define FILAMENTCHANGE_FINALFEED 23 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
+#define FILAMENTCHANGE_FIRSTFEED 60 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+#define FILAMENTCHANGE_FINALFEED 35 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
 #define FILAMENTCHANGE_RECFEED 5
 
 #define FILAMENTCHANGE_XYFEED 50
-#define FILAMENTCHANGE_EFEED_FIRST 20 // feedrate in mm/s for fast filament loading sequence used in filament change (M600)
+#define FILAMENTCHANGE_EFEED_FIRST 23 // feedrate in mm/s for fast filament loading sequence used in filament change (M600)
 #define FILAMENTCHANGE_EFEED_FINAL 3.3f // feedrate in mm/s for slow filament loading sequence used in filament change (M600) and filament load (M701)
 //#define FILAMENTCHANGE_RFEED 400
 #define FILAMENTCHANGE_RFEED 7000 / 60
@@ -582,7 +582,7 @@
 #elif defined(E3D_PT100_EXTRUDER_NO_AMP)
 #define TEMP_SENSOR_0 148
 #else
-#define TEMP_SENSOR_0 5
+#define TEMP_SENSOR_0 800
 #endif
 #if defined(E3D_PT100_BED_WITH_AMP)
 #define TEMP_SENSOR_BED 247

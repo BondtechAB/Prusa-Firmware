@@ -17,7 +17,7 @@
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "LGX-SC-HT MK3S"
+#define CUSTOM_MENDEL_NAME "LGXSC-PT1000"
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
@@ -169,6 +169,8 @@
 #define DEBUG_DCODE3
 #define DEBUG_DCODE6
 
+//#define DEBUG_PULLUP_CRASH //Test Pullup crash
+
 //#define DEBUG_BUILD
 //#define DEBUG_SEC_LANG   //secondary language debug output at startup
 //#define DEBUG_W25X20CL   //debug external spi flash
@@ -176,7 +178,6 @@
 //#define _NO_ASM
 #define DEBUG_DCODES //D codes
 #define DEBUG_STACK_MONITOR        //Stack monitor in stepper ISR
-//#define DEBUG_FSENSOR_LOG          //Reports fsensor status to serial
 //#define DEBUG_CRASHDET_COUNTERS  //Display crash-detection counters on LCD
 //#define DEBUG_RESUME_PRINT       //Resume/save print debug enable
 //#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output
@@ -191,7 +192,6 @@
 //#define DEBUG_DISABLE_SWLIMITS  //sw limits ignored
 //#define DEBUG_DISABLE_LCD_STATUS_LINE  //empty four lcd line
 //#define DEBUG_DISABLE_PREVENT_EXTRUDER //cold extrusion and long extrusion allowed
-//#define DEBUG_DISABLE_PRUSA_STATISTICS //disable prusa_statistics() mesages
 //#define DEBUG_DISABLE_FORCE_SELFTEST //disable force selftest
 //#define DEBUG_XSTEP_DUP_PIN 21   //duplicate x-step output to pin 21 (SCL on P3)
 //#define DEBUG_YSTEP_DUP_PIN 21   //duplicate y-step output to pin 21 (SCL on P3)
@@ -202,8 +202,6 @@
 #define PLANNER_DIAGNOSTICS // Show the planner queue status on printer display.
 #define CMD_DIAGNOSTICS //Show cmd queue length on printer display
 #endif /* DEBUG_BUILD */
-
-//#define FSENSOR_QUALITY
 
 
 #define LINEARITY_CORRECTION
@@ -225,6 +223,7 @@
 #define TMC2130_INTPOL_XY   1         // extrapolate 256 for XY axes
 #define TMC2130_INTPOL_Z    1         // extrapolate 256 for Z axis
 #define TMC2130_INTPOL_E    1         // extrapolate 256 for E axis
+// #define ALLOW_ALL_MRES
 
 #define TMC2130_PWM_GRAD_X  2         // PWMCONF
 #define TMC2130_PWM_AMPL_X  230       // PWMCONF
@@ -364,10 +363,10 @@
 #define FILAMENTCHANGE_YPOS 0
 #define FILAMENTCHANGE_ZADD 2
 #define FILAMENTCHANGE_FIRSTRETRACT -2
-#define FILAMENTCHANGE_FINALRETRACT -40
+#define FILAMENTCHANGE_FINALRETRACT 0
 
-#define FILAMENTCHANGE_FIRSTFEED 40 //E distance in mm for fast filament loading sequence used used in filament change (M600)
-#define FILAMENTCHANGE_FINALFEED 20 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
+#define FILAMENTCHANGE_FIRSTFEED 60 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+#define FILAMENTCHANGE_FINALFEED 35 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
 #define FILAMENTCHANGE_RECFEED 5
 
 #define FILAMENTCHANGE_XYFEED 50
@@ -583,7 +582,7 @@
 #elif defined(E3D_PT100_EXTRUDER_NO_AMP)
 #define TEMP_SENSOR_0 148
 #else
-#define TEMP_SENSOR_0 800
+#define TEMP_SENSOR_0 1047
 #endif
 #if defined(E3D_PT100_BED_WITH_AMP)
 #define TEMP_SENSOR_BED 247

@@ -17,7 +17,7 @@
 #define NOZZLE_TYPE "E3Dv6full"
 
 // Printer name
-#define CUSTOM_MENDEL_NAME "LGXSC-PT1000"
+#define CUSTOM_MENDEL_NAME "LGXSM-PT1000"
 
 // Electronics
 #define MOTHERBOARD BOARD_EINSY_1_0a
@@ -34,8 +34,8 @@
 //#define E3D_PT100_BED_NO_AMP
 
 // Extruder
-#define BONDTECH_LGX_SC //Shortcut Copperhead
-//#define BONDTECH_LGX_SM //Shortcut Mosquito
+//#define BONDTECH_LGX_SC //Shortcut Copperhead
+#define BONDTECH_LGX_SM //Shortcut Mosquito
 
 /*------------------------------------
  AXIS SETTINGS
@@ -363,10 +363,10 @@
 #define FILAMENTCHANGE_YPOS 0
 #define FILAMENTCHANGE_ZADD 2
 #define FILAMENTCHANGE_FIRSTRETRACT -2
-#define FILAMENTCHANGE_FINALRETRACT -40
+#define FILAMENTCHANGE_FINALRETRACT 0
 
-#define FILAMENTCHANGE_FIRSTFEED 40 //E distance in mm for fast filament loading sequence used used in filament change (M600)
-#define FILAMENTCHANGE_FINALFEED 20 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
+#define FILAMENTCHANGE_FIRSTFEED 60 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+#define FILAMENTCHANGE_FINALFEED 35 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
 #define FILAMENTCHANGE_RECFEED 5
 
 #define FILAMENTCHANGE_XYFEED 50
