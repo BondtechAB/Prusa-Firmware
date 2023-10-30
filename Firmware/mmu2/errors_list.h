@@ -77,6 +77,7 @@ typedef enum : uint16_t {
     ERR_SYSTEM_FW_RUNTIME_ERROR = 505,
     ERR_SYSTEM_UNLOAD_MANUALLY = 506,
     ERR_SYSTEM_FILAMENT_EJECTED = 507,
+    ERR_SYSTEM_FILAMENT_CHANGE = 508,
 
     ERR_OTHER_UNKNOWN_ERROR = 900
 } err_num_t;
@@ -122,13 +123,14 @@ static const constexpr uint16_t errorCodes[] PROGMEM = {
     ERR_ELECTRICAL_MMU_MCU_ERROR,
     ERR_CONNECT_MMU_NOT_RESPONDING,
     ERR_CONNECT_COMMUNICATION_ERROR,
-    ERR_SYSTEM_FILAMENT_ALREADY_LOADED, 
-    ERR_SYSTEM_INVALID_TOOL, 
-    ERR_SYSTEM_QUEUE_FULL, 
-    ERR_SYSTEM_FW_UPDATE_NEEDED, 
+    ERR_SYSTEM_FILAMENT_ALREADY_LOADED,
+    ERR_SYSTEM_INVALID_TOOL,
+    ERR_SYSTEM_QUEUE_FULL,
+    ERR_SYSTEM_FW_UPDATE_NEEDED,
     ERR_SYSTEM_FW_RUNTIME_ERROR,
     ERR_SYSTEM_UNLOAD_MANUALLY,
     ERR_SYSTEM_FILAMENT_EJECTED,
+    ERR_SYSTEM_FILAMENT_CHANGE,
     ERR_OTHER_UNKNOWN_ERROR
 };
 
@@ -183,6 +185,7 @@ static const char MSG_TITLE_FW_UPDATE_NEEDED[] PROGMEM_I1        = ISTR("MMU FW 
 static const char MSG_TITLE_FW_RUNTIME_ERROR[] PROGMEM_I1        = ISTR("FW RUNTIME ERROR"); ////MSG_TITLE_FW_RUNTIME_ERROR c=20
 static const char MSG_TITLE_UNLOAD_MANUALLY[] PROGMEM_I1         = ISTR("UNLOAD MANUALLY"); ////MSG_TITLE_UNLOAD_MANUALLY c=20
 static const char MSG_TITLE_FILAMENT_EJECTED[] PROGMEM_I1        = ISTR("FILAMENT EJECTED"); ////MSG_TITLE_FILAMENT_EJECTED c=20
+static const char MSG_TITLE_FILAMENT_CHANGE[] PROGMEM_I1         = ISTR("FILAMENT CHANGE"); ////MSG_TITLE_FILAMENT_CHANGE c=20
 static const char MSG_TITLE_UNKNOWN_ERROR[] PROGMEM_I1           = ISTR("UNKNOWN ERROR"); ////MSG_TITLE_UNKNOWN_ERROR c=20
 
 static const char * const errorTitles [] PROGMEM = {
@@ -229,6 +232,7 @@ static const char * const errorTitles [] PROGMEM = {
     _R(MSG_TITLE_FW_RUNTIME_ERROR),
     _R(MSG_TITLE_UNLOAD_MANUALLY),
     _R(MSG_TITLE_FILAMENT_EJECTED),
+    _R(MSG_TITLE_FILAMENT_CHANGE),
     _R(MSG_TITLE_UNKNOWN_ERROR)
 };
 
@@ -278,10 +282,11 @@ static const char MSG_DESC_QUEUE_FULL[] PROGMEM_I1 = ISTR("MMU Firmware internal
 static const char MSG_DESC_FW_RUNTIME_ERROR[] PROGMEM_I1 = ISTR("Internal runtime error. Try resetting the MMU or updating the firmware."); ////MSG_DESC_FW_RUNTIME_ERROR c=20 r=8
 static const char MSG_DESC_UNLOAD_MANUALLY[] PROGMEM_I1 = ISTR("Filament detected unexpectedly. Ensure no filament is loaded. Check the sensors and wiring."); ////MSG_DESC_UNLOAD_MANUALLY c=20 r=8
 static const char MSG_DESC_FILAMENT_EJECTED[] PROGMEM_I1 = ISTR("Remove the ejected filament from the front of the MMU."); ////MSG_DESC_FILAMENT_EJECTED c=20 r=8
+static const char MSG_DESC_FILAMENT_CHANGE[] PROGMEM_I1 = ISTR("M600 Filament Change. Load a new filament or eject the old one."); ////MSG_DESC_FILAMENT_CHANGE c=20 r=8
 static const char MSG_DESC_UNKNOWN_ERROR[] PROGMEM_I1    = ISTR("Unexpected error occurred."); ////MSG_DESC_UNKNOWN_ERROR c=20 r=8
 
 // Read explanation in mmu2_protocol_logic.cpp -> supportedMmuFWVersion
-static constexpr char MSG_DESC_FW_UPDATE_NEEDED[] PROGMEM_I1 = ISTR("MMU FW version is incompatible with printer FW.Update to version 3.0.0."); ////MSG_DESC_FW_UPDATE_NEEDED c=20 r=8
+static constexpr char MSG_DESC_FW_UPDATE_NEEDED[] PROGMEM_I1 = ISTR("MMU FW version is incompatible with printer FW.Update to version 3.0.1."); ////MSG_DESC_FW_UPDATE_NEEDED c=20 r=8
 static constexpr uint8_t szFWUN = sizeof(MSG_DESC_FW_UPDATE_NEEDED);
 // at least check the individual version characters in MSG_DESC_FW_UPDATE_NEEDED
 static_assert(MSG_DESC_FW_UPDATE_NEEDED[szFWUN - 7] == ('0' + mmuVersionMajor));
@@ -332,6 +337,7 @@ static const char * const errorDescs[] PROGMEM = {
     _R(MSG_DESC_FW_RUNTIME_ERROR),
     _R(MSG_DESC_UNLOAD_MANUALLY),
     _R(MSG_DESC_FILAMENT_EJECTED),
+    _R(MSG_DESC_FILAMENT_CHANGE),
     _R(MSG_DESC_UNKNOWN_ERROR)
 };
 
@@ -344,9 +350,12 @@ static const char * const errorDescs[] PROGMEM = {
 // Beware - we only have space for 2 buttons on the LCD while the MMU has 3 buttons
 // -> the left button on the MMU is not used/rendered on the LCD (it is also almost unused on the MMU side)
 static const char MSG_BTN_RETRY[] PROGMEM_I1 = ISTR("Retry"); ////MSG_BTN_RETRY c=8
-static const char MSG_BTN_CONTINUE[] PROGMEM_I1 = ISTR("Done"); ////MSG_BTN_CONTINUE c=8
+//static const char MSG_BTN_DONE[] PROGMEM_I1 = ISTR("Done"); //Reuse MSG_DONE c=8
 static const char MSG_BTN_RESET_MMU[] PROGMEM_I1 = ISTR("ResetMMU"); ////MSG_BTN_RESET_MMU c=8
 static const char MSG_BTN_UNLOAD[] PROGMEM_I1 = ISTR("Unload"); ////MSG_BTN_UNLOAD c=8
+static const char MSG_BTN_LOAD[] PROGMEM_I1 = ISTR("Load"); ////MSG_BTN_LOAD c=8
+static const char MSG_BTN_EJECT[] PROGMEM_I1 = ISTR("Eject"); ////MSG_BTN_EJECT c=8
+//static const char MSG_BTN_TUNE_MMU[] PROGMEM_I1 = ISTR("Tune"); //Reuse MSG_TUNE c=8
 static const char MSG_BTN_STOP[] PROGMEM_I1 = ISTR("Stop"); ////MSG_BTN_STOP c=8
 static const char MSG_BTN_DISABLE_MMU[] PROGMEM_I1 = ISTR("Disable"); ////MSG_BTN_DISABLE_MMU c=8
 static const char MSG_BTN_MORE[] PROGMEM_N1 = "\x06";
@@ -354,9 +363,12 @@ static const char MSG_BTN_MORE[] PROGMEM_N1 = "\x06";
 // Used to parse the buttons from Btns().
 static const char * const btnOperation[] PROGMEM = {
     _R(MSG_BTN_RETRY),
-    _R(MSG_BTN_CONTINUE),
+    _R(MSG_DONE),
     _R(MSG_BTN_RESET_MMU),
     _R(MSG_BTN_UNLOAD),
+    _R(MSG_BTN_LOAD),
+    _R(MSG_BTN_EJECT),
+    _R(MSG_TUNE),
     _R(MSG_BTN_STOP),
     _R(MSG_BTN_DISABLE_MMU),
 };
@@ -378,9 +390,9 @@ static const uint8_t errorButtons[] PROGMEM = {
     Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//FSENSOR_TOO_EARLY
     Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//INSPECT_FINDA
     Btns(ButtonOperations::Continue, ButtonOperations::NoOperation),//LOAD_TO_EXTRUDER_FAILED
-    Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//SELECTOR_CANNOT_HOME
+    Btns(ButtonOperations::Retry, ButtonOperations::Tune),//SELECTOR_CANNOT_HOME
     Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//SELECTOR_CANNOT_MOVE
-    Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//IDLER_CANNOT_HOME
+    Btns(ButtonOperations::Retry, ButtonOperations::Tune),//IDLER_CANNOT_HOME
     Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//IDLER_CANNOT_MOVE
 
     Btns(ButtonOperations::Continue, ButtonOperations::ResetMMU),//WARNING_TMC_PULLEY_TOO_HOT
@@ -416,6 +428,7 @@ static const uint8_t errorButtons[] PROGMEM = {
     Btns(ButtonOperations::ResetMMU, ButtonOperations::NoOperation),//FW_RUNTIME_ERROR
     Btns(ButtonOperations::Retry, ButtonOperations::NoOperation),//UNLOAD_MANUALLY
     Btns(ButtonOperations::Continue, ButtonOperations::NoOperation),//FILAMENT_EJECTED
+    Btns(ButtonOperations::Eject, ButtonOperations::Load),//FILAMENT_CHANGE
     Btns(ButtonOperations::ResetMMU, ButtonOperations::NoOperation),//UNKOWN_ERROR
 };
 

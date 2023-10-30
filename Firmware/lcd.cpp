@@ -129,18 +129,17 @@ static void lcd_send(uint8_t data, uint8_t flags, uint16_t duration = LCD_DEFAUL
 	_delay_us(5);
 	lcd_writebits(data);
 #ifndef LCD_8BIT
-	if (!(flags & LCD_HALF_FLAG))
-	{
-		_delay_us(LCD_DEFAULT_DELAY);
-		lcd_writebits(data<<4);
+	if (!(flags & LCD_HALF_FLAG)) {
+		// _delay_us(LCD_DEFAULT_DELAY); // should not be needed when sending a two nibble instruction.
+		lcd_writebits((data << 4) | (data >> 4)); //force efficient swap opcode even though the lower nibble is ignored in this case
 	}
 #endif
 	delayMicroseconds(duration);
 }
 
-static void lcd_command(uint8_t value, uint16_t delayExtra = 0)
+static void lcd_command(uint8_t value, uint16_t duration = LCD_DEFAULT_DELAY)
 {
-	lcd_send(value, LOW, LCD_DEFAULT_DELAY + delayExtra);
+	lcd_send(value, LOW, duration);
 }
 
 static void lcd_write(uint8_t value)
@@ -547,14 +546,14 @@ void lcd_print(const char* s)
 	while (*s) lcd_write(*(s++));
 }
 
-char lcd_print_pad(const char* s, uint8_t len)
+uint8_t lcd_print_pad(const char* s, uint8_t len)
 {
     while (len && *s) {
         lcd_write(*(s++));
         --len;
     }
     lcd_space(len);
-    return *s;
+    return len;
 }
 
 uint8_t lcd_print_pad_P(const char* s, uint8_t len)

@@ -25,6 +25,11 @@ void EndReport(CommandInProgress cip, uint16_t ec);
 /// Return true if the printer's LCD is drawing the error screen
 bool isErrorScreenRunning();
 
+/// Return true if the error screen is sleeping in the background
+/// Error screen sleeps when the firmware is rendering complementary
+/// UI to resolve the error screen, for example tuning Idler Stallguard Threshold
+bool TuneMenuEntered();
+
 /// @brief Called when the MMU or MK3S sends operation error (even repeatedly).
 /// Render MMU error screen on the LCD. This must be non-blocking
 /// and allow the MMU and printer to communicate with each other.
@@ -37,6 +42,12 @@ void ReportProgressHook(CommandInProgress cip, uint16_t ec);
 
 /// @brief Clear the status line and setup the LCD cursor
 void TryLoadUnloadProgressbarInit();
+
+/// @brief Clear the status line and setup the LCD cursor
+void TryLoadUnloadProgressbarDeinit();
+
+/// @brief Report the results to serial
+void TryLoadUnloadProgressbarEcho();
 
 /// @brief Add one block to the progress bar
 /// @param col pixel position on the LCD status line, should range from 0 to (LCD_WIDTH - 1)
@@ -79,5 +90,7 @@ void FullScreenMsgRestoringTemperature();
 
 void ScreenUpdateEnable();
 void ScreenClear();
+
+void tuneIdlerStallguardThreshold();
 
 } // namespace

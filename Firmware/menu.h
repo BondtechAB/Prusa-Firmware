@@ -20,10 +20,12 @@ typedef struct
 {
     //Variables used when editing values.
     const char* editLabel;
-    void* editValue;
+    uint8_t editValueBits; // 8 or 16
+    void* editValuePtr;
     int16_t currentValue;
     int16_t minEditValue;
     int16_t maxEditValue;
+    int16_t minJumpValue;
 } menu_data_edit_t;
 
 extern uint8_t menu_data[MENU_DATA_SIZE];
@@ -33,12 +35,12 @@ extern uint8_t menu_depth;
 //! definition of reasons blocking the main menu
 //! Use them as bit mask, so that the code may set various errors at the same time
 enum ESeriousErrors {
-	MENU_BLOCK_NONE                = 0,
-	MENU_BLOCK_THERMAL_ERROR       = 0x01,
-#ifdef TEMP_MODEL
-	MENU_BLOCK_TEMP_MODEL_AUTOTUNE = 0x02,
+	MENU_BLOCK_NONE                   = 0,
+	MENU_BLOCK_THERMAL_ERROR          = 0x01,
+#ifdef THERMAL_MODEL
+	MENU_BLOCK_THERMAL_MODEL_AUTOTUNE = 0x02,
 #endif
-    MENU_BLOCK_STATUS_SCREEN_M0    = 0x04,
+    MENU_BLOCK_STATUS_SCREEN_M0       = 0x04,
 }; // and possibly others in the future.
 
 //! this is a flag for disabling entering the main menu and longpress. If this is set to anything !=
@@ -143,11 +145,9 @@ struct SheetFormatBuffer
 
 extern void menu_format_sheet_E(const Sheet &sheet_E, SheetFormatBuffer &buffer);
 
-
-#define MENU_ITEM_EDIT_int3_P(str, pval, minval, maxval) do { menu_item_edit_P(str, pval, minval, maxval); } while (0)
-//#define MENU_ITEM_EDIT_int3_P(str, pval, minval, maxval) MENU_ITEM_EDIT(int3, str, pval, minval, maxval)
-template <typename T>
-extern void menu_item_edit_P(const char* str, T pval, int16_t min_val, int16_t max_val);
+#define MENU_ITEM_EDIT_int3_P(str, pval, minval, maxval) do { menu_item_edit_P(str, pval, sizeof(*pval)*8, minval, maxval, 0); } while (0)
+#define MENU_ITEM_EDIT_int3_jmp_P(str, pval, minval, maxval, jmpval) do { menu_item_edit_P(str, pval, sizeof(*pval)*8, minval, maxval, jmpval); } while (0)
+extern void menu_item_edit_P(const char* str, void* pval, uint8_t pbits, int16_t min_val, int16_t max_val, int16_t jmp_val);
 
 extern void menu_progressbar_init(uint16_t total, const char* title);
 extern void menu_progressbar_update(uint16_t newVal);

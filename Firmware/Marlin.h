@@ -173,6 +173,7 @@ void manage_inactivity(bool ignore_stepper_queue=false);
     #define  enable_z()  poweron_z()
     #define disable_z() poweroff_z()
 #else
+    extern bool bEnableForce_z; // Used by ultralcd stealth toggle
     void init_force_z();
     void check_force_z();
     void enable_force_z();
@@ -278,7 +279,6 @@ extern uint32_t start_pause_print; // milliseconds
 extern ShortTimer usb_timer;
 extern bool processing_tcode;
 extern bool homing_flag;
-extern bool loading_flag;
 extern uint32_t total_filament_used; // mm/100 or 10um
 
 /// @brief Save print statistics to EEPROM
@@ -297,14 +297,18 @@ extern bool mesh_bed_leveling_flag;
 
 // save/restore printing
 extern bool saved_printing;
+extern uint32_t saved_sdpos;
 extern uint8_t saved_printing_type;
 #define PRINTING_TYPE_SD 0
 #define PRINTING_TYPE_USB 1
 #define PRINTING_TYPE_NONE 2
 
-extern float saved_extruder_temperature; //!< Active extruder temperature
-extern float saved_bed_temperature; //!< Bed temperature
+extern uint16_t saved_extruder_temperature; //!< Active extruder temperature
+extern uint8_t saved_bed_temperature; //!< Bed temperature
+extern bool saved_extruder_relative_mode;
 extern uint8_t saved_fan_speed; //!< Print fan speed, ranges from 0 to 255
+extern float saved_pos[NUM_AXIS];
+extern uint16_t saved_feedrate2;
 
 //estimated time to end of the print
 extern uint8_t print_percent_done_normal;
@@ -380,22 +384,27 @@ float temp_compensation_pinda_thermistor_offset(float temperature_pinda);
 void serialecho_temperatures();
 bool check_commands();
 
-void uvlo_();
-void uvlo_tiny();
-void recover_print(uint8_t automatic); 
-void setup_uvlo_interrupt();
-
-extern bool recover_machine_state_after_power_panic();
-extern void restore_print_from_eeprom(bool mbl_was_active);
-
 extern void print_world_coordinates();
 extern void print_physical_coordinates();
 extern void print_mesh_bed_leveling_table();
 
+void save_print_file_state();
+void restore_print_file_state();
+void save_planner_global_state();
+void refresh_print_state_in_ram();
+void clear_print_state_in_ram();
 extern void stop_and_save_print_to_ram(float z_move, float e_move);
 void restore_extruder_temperature_from_ram();
 extern void restore_print_from_ram_and_continue(float e_move);
 extern void cancel_saved_printing();
+
+// Define some coordinates outside the clamp limits (making them invalid past the parsing stage) so
+// that they can be used later for various logical checks
+#define X_COORD_INVALID (X_MIN_POS-1)
+#define SAVED_START_POSITION_UNSET X_COORD_INVALID
+extern float saved_start_position[NUM_AXIS];
+extern uint16_t saved_segment_idx;
+extern bool isPartialBackupAvailable;
 
 
 //estimated time to end of the print
@@ -432,6 +441,7 @@ extern int8_t busy_state;
 #define FORCE_HIGH_POWER_END	force_high_power_mode(false)
 
 void force_high_power_mode(bool start_high_power_section);
+void change_power_mode_live(uint8_t mode);
 
 #endif //TMC2130
 

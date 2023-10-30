@@ -5,6 +5,8 @@
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
+#define _CONCAT(x,y) x##y
+#define CONCAT(x,y) _CONCAT(x,y)
 
 #include <avr/pgmspace.h>
 extern const uint16_t _nPrinterType;
@@ -12,53 +14,41 @@ extern const char _sPrinterName[] PROGMEM;
 extern const uint16_t _nPrinterMmuType;
 extern const char _sPrinterMmuName[] PROGMEM;
 
-// Firmware version
+// Firmware version.
+// NOTE: These are ONLY used if you are not building via cmake and/or not in a git repository.
+// Otherwise the repository information takes precedence.
+#ifndef CMAKE_CONTROL
 #define FW_MAJOR 3
 #define FW_MINOR 13
-#define FW_REVISION 1
-//#define FW_FLAVOR RC      //uncomment if DEBUG, DEVEL, ALPHA, BETA or RC
+#define FW_REVISION 2
+#define FW_COMMITNR 7080
+//#define FW_FLAVOR RC      //uncomment if DEV, ALPHA, BETA or RC
 //#define FW_FLAVERSION 1     //uncomment if FW_FLAVOR is defined and versioning is needed. Limited to max 8.
-#ifndef FW_FLAVOR
-    #define FW_VERSION STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION)
-#else
-    #define FW_VERSION STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_FLAVOR) "" STR(FW_FLAVERSION)
 #endif
 
-#define FW_COMMIT_NR 7615
+#ifndef FW_FLAVOR
+    #define FW_TWEAK (FIRMWARE_REVISION_RELEASED)
+    #define FW_VERSION STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION)
+    #define FW_VERSION_FULL STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_COMMITNR)
+#else
+    // Construct the TWEAK value as it is expected from the enum.
+    #define FW_TWEAK (CONCAT(FIRMWARE_REVISION_,FW_FLAVOR) + FW_FLAVERSION)
+    #define FW_VERSION STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_FLAVOR) "" STR(FW_FLAVERSION)
+    #define FW_VERSION_FULL STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_FLAVOR) "" STR(FW_FLAVERSION) "-" STR(FW_COMMITNR)
+#endif
 
-// FW_VERSION_UNKNOWN means this is an unofficial build.
-// The firmware should only be checked into github with this symbol.
-#define FW_DEV_VERSION FW_VERSION_UNKNOWN
+// The full version string and repository source are set via cmake
+#ifndef CMAKE_CONTROL
+#define FW_COMMIT_HASH_LENGTH 1
+#define FW_COMMIT_HASH "0"
 #define FW_REPOSITORY "Unknown"
-#define FW_VERSION_FULL FW_VERSION "-" STR(FW_COMMIT_NR)
+#ifndef FW_VERSION_FULL
+#define FW_VERSION_FULL FW_VERSION
+#endif //END FW_VERSION_FULL
+#endif
 
 // G-code language level
 #define GCODE_LEVEL 1
-
-// Debug version has debugging enabled (the symbol DEBUG_BUILD is set).
-// The debug build may be a bit slower than the non-debug build, therefore the debug build should
-// not be shipped to a customer.
-#define FW_VERSION_DEBUG    6
-// This is a development build. A development build is either built from an unofficial git repository,
-// or from an unofficial branch, or it does not have a label set. Only the build server should set this build type.
-#define FW_VERSION_DEVEL    5
-// This is an alpha release. Only the build server should set this build type.
-#define FW_VERSION_ALPHA    4
-// This is a beta release. Only the build server should set this build type.
-#define FW_VERSION_BETA     3
-// This is a release candidate build. Only the build server should set this build type.
-#define FW_VERSION_RC       2
-// This is a final release. Only the build server should set this build type.
-#define FW_VERSION_GOLD     1
-// This is an unofficial build. The firmware should only be checked into github with this symbol,
-// the build server shall never produce builds with this build type.
-#define FW_VERSION_UNKNOWN  0
-
-#if FW_DEV_VERSION == FW_VERSION_DEBUG
-#define DEBUG_BUILD
-#else
-#undef DEBUG_BUILD
-#endif
 
 #ifndef SOURCE_DATE_EPOCH
 #define SOURCE_DATE_EPOCH __DATE__

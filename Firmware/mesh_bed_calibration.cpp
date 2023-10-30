@@ -953,7 +953,12 @@ bool find_bed_induction_sensor_point_z(float minimum_z, uint8_t n_iter, int
 	bool high_deviation_occured = false; 
     bedPWMDisabled = 1;
 #ifdef TMC2130
-	FORCE_HIGH_POWER_START;
+    bool bHighPowerForced = false;
+	if (tmc2130_mode == TMC2130_MODE_SILENT) 
+    {
+        FORCE_HIGH_POWER_START;
+        bHighPowerForced = true;
+    }
 #endif
 	//printf_P(PSTR("Min. Z: %f\n"), minimum_z);
 	#ifdef SUPPORT_VERBOSITY
@@ -1047,7 +1052,7 @@ bool find_bed_induction_sensor_point_z(float minimum_z, uint8_t n_iter, int
     enable_z_endstop(endstop_z_enabled);
 //    SERIAL_ECHOLNPGM("find_bed_induction_sensor_point_z 3");
 #ifdef TMC2130
-	FORCE_HIGH_POWER_END;
+    if (bHighPowerForced) FORCE_HIGH_POWER_END;
 #endif
     bedPWMDisabled = 0;
 	return true;
@@ -1057,7 +1062,7 @@ error:
     enable_endstops(endstops_enabled);
     enable_z_endstop(endstop_z_enabled);
 #ifdef TMC2130
-	FORCE_HIGH_POWER_END;
+	if (bHighPowerForced) FORCE_HIGH_POWER_END;
 #endif
     bedPWMDisabled = 0;
 	return false;
@@ -3061,7 +3066,7 @@ void babystep_load()
         SERIAL_ECHO(", current Z: ");
         SERIAL_ECHO(current_position[Z_AXIS]);
         SERIAL_ECHO("correction: ");
-        SERIAL_ECHO(float(babystepLoadZ) / float(axis_steps_per_unit[Z_AXIS]));
+        SERIAL_ECHO(float(babystepLoadZ) / float(axis_steps_per_mm[Z_AXIS]));
         SERIAL_ECHOLN("");
     #endif
     }
@@ -3070,12 +3075,12 @@ void babystep_load()
 void babystep_apply()
 {
     babystep_load();
-    shift_z(- float(babystepLoadZ) / float(cs.axis_steps_per_unit[Z_AXIS]));
+    shift_z(- float(babystepLoadZ) / float(cs.axis_steps_per_mm[Z_AXIS]));
 }
 
 void babystep_undo()
 {
-      shift_z(float(babystepLoadZ) / float(cs.axis_steps_per_unit[Z_AXIS]));
+      shift_z(float(babystepLoadZ) / float(cs.axis_steps_per_mm[Z_AXIS]));
       babystepLoadZ = 0;
 }
 

@@ -78,6 +78,20 @@ void MMU2::StopKeepPowered() {
     mmu2Serial.close();
 }
 
+void MMU2::Tune() {
+    switch (lastErrorCode) {
+    case ErrorCode::HOMING_SELECTOR_FAILED:
+    case ErrorCode::HOMING_IDLER_FAILED:
+    {
+        // Prompt a menu for different values
+        tuneIdlerStallguardThreshold();
+        break;
+    }
+    default:
+        break;
+    }
+}
+
 void MMU2::Reset(ResetForm level) {
     switch (level) {
     case Software:
@@ -134,16 +148,25 @@ bool MMU2::ReadRegister(uint8_t address) {
         logic.ReadRegister(address); // we may signal the accepted/rejected status of the response as return value of this function
     } while (!manage_response(false, false));
 
+    // Update cached value
+    lastReadRegisterValue = logic.rsp.paramValue;
     return true;
 }
 
-bool MMU2::WriteRegister(uint8_t address, uint16_t data) {
+bool __attribute__((noinline)) MMU2::WriteRegister(uint8_t address, uint16_t data) {
     if (!WaitForMMUReady())
         return false;
 
-    // special case - intercept requests of extra loading distance and perform the change even on the printer's side
-    if (address == 0x0b) {
+    // special cases - intercept requests of registers which influence the printer's behaviour too + perform the change even on the printer's side
+    switch (address) {
+    case (uint8_t)Register::Extra_Load_Distance:
         logic.PlanExtraLoadDistance(data);
+        break;
+    case (uint8_t)Register::Pulley_Slow_Feedrate:
+        logic.PlanPulleySlowFeedRate(data);
+        break;
+    default:
+        break; // do not intercept any other register writes
     }
 
     do {
@@ -297,6 +320,10 @@ bool MMU2::VerifyFilamentEnteredPTFE() {
         }
     }
 
+    Disable_E0();
+    TryLoadUnloadProgressbarEcho();
+    TryLoadUnloadProgressbarDeinit();
+
     if (fsensorState) {
         IncrementLoadFails();
         return false;
@@ -428,7 +455,7 @@ uint8_t MMU2::get_tool_change_tool() const {
 bool MMU2::set_filament_type(uint8_t /*slot*/, uint8_t /*type*/) {
     if (!WaitForMMUReady())
         return false;
-    
+
     // @@TODO - this is not supported in the new MMU yet
     //    slot = slot; // @@TODO
     //    type = type; // @@TODO
@@ -618,6 +645,10 @@ void MMU2::SaveAndPark(bool move_axes) {
         Disable_E0();
         planner_synchronize();
 
+        // In case a power panic happens while waiting for the user
+        // take a partial back up of print state into RAM (current position, etc.)
+        refresh_print_state_in_ram();
+
         if (move_axes) {
             mmu_print_saved |= SavedState::ParkExtruder;
             resume_position = planner_current_position(); // save current pos
@@ -672,6 +703,11 @@ void MMU2::ResumeUnpark() {
         // Move Z_AXIS to saved position
         motion_do_blocking_move_to_z(resume_position.xyz[2], feedRate_t(NOZZLE_PARK_Z_FEEDRATE));
 
+        // From this point forward, power panic should not use
+        // the partial backup in RAM since the extruder is no
+        // longer in parking position
+        clear_print_state_in_ram();
+
         mmu_print_saved &= ~(SavedState::ParkExtruder);
     }
 }
@@ -685,24 +721,23 @@ void MMU2::CheckUserInput() {
         lastButton = Buttons::NoButton; // Clear it.
     }
 
+    if (mmu2.MMULastErrorSource() == MMU2::ErrorSourcePrinter && btn != Buttons::NoButton)
+    {
+        // When the printer has raised an error screen, and a button was selected
+        // the error screen should always be dismissed.
+        ClearPrinterError();
+        // A horrible hack - clear the explicit printer error allowing manage_response to recover on MMU's Finished state
+        // Moreover - if the MMU is currently doing something (like the LoadFilament - see comment above)
+        // we'll actually wait for it automagically in manage_response and after it finishes correctly,
+        // we'll issue another command (like toolchange)
+    }
+
     switch (btn) {
     case Left:
     case Middle:
     case Right:
         SERIAL_ECHOPGM("CheckUserInput-btnLMR ");
         SERIAL_ECHOLN(btn);
-
-        // clear the explicit printer error as soon as possible so that the MMU error screens + reporting doesn't get too confused
-        if (lastErrorCode == ErrorCode::LOAD_TO_EXTRUDER_FAILED) {
-            // A horrible hack - clear the explicit printer error allowing manage_response to recover on MMU's Finished state
-            // Moreover - if the MMU is currently doing something (like the LoadFilament - see comment above)
-            // we'll actually wait for it automagically in manage_response and after it finishes correctly,
-            // we'll issue another command (like toolchange)
-            logic.ClearPrinterError();
-            lastErrorCode = ErrorCode::OK;
-            lastErrorSource = ErrorSourceNone; // this seems to help clearing the error screen
-        }
-
         ResumeHotendTemp(); // Recover the hotend temp before we attempt to do anything else...
 
         if (mmu2.MMULastErrorSource() == MMU2::ErrorSourceMMU) {
@@ -721,6 +756,14 @@ void MMU2::CheckUserInput() {
         default:
             break;
         }
+        break;
+    case TuneMMU:
+        Tune();
+        break;
+    case Load:
+    case Eject:
+        // High level operation
+        setPrinterButtonOperation(btn);
         break;
     case ResetMMU:
         Reset(ResetPin); // we cannot do power cycle on the MK3
@@ -780,7 +823,14 @@ bool MMU2::manage_response(const bool move_axes, const bool turn_off_nozzle) {
             // the E may have some more moves to finish - wait for them
             ResumeHotendTemp();
             ResumeUnpark();             // We can now travel back to the tower or wherever we were when we saved.
-            logic.ResetRetryAttempts(); // Reset the retry counter.
+            if (!TuneMenuEntered())
+            {
+                // If the error screen is sleeping (running 'Tune' menu)
+                // then don't reset retry attempts because we this will trigger
+                // an automatic retry attempt when 'Tune' button is selected. We want the
+                // error screen to appear once more so the user can hit 'Retry' button manually.
+                logic.ResetRetryAttempts(); // Reset the retry counter.
+            }
             planner_synchronize();
             return true;
         case Interrupted:
@@ -877,7 +927,6 @@ void MMU2::filament_ramming() {
 
 void MMU2::execute_extruder_sequence(const E_Step *sequence, uint8_t steps) {
     planner_synchronize();
-    Enable_E0();
 
     const E_Step *step = sequence;
     for (uint8_t i = steps; i ; --i) {
@@ -929,7 +978,7 @@ void MMU2::ReportError(ErrorCode ec, ErrorSource res) {
         lastErrorSource = res;
         LogErrorEvent_P(_O(PrusaErrorTitle(PrusaErrorCodeIndex((uint16_t)ec))));
 
-        if (ec != ErrorCode::OK) {
+        if (ec != ErrorCode::OK && ec != ErrorCode::FILAMENT_EJECTED && ec != ErrorCode::FILAMENT_CHANGE) {
             IncrementMMUFails();
 
             // check if it is a "power" failure - we consider TMC-related errors as power failures
@@ -1040,7 +1089,7 @@ void MMU2::OnMMUProgressMsgSame(ProgressCode pc) {
                 // After the MMU knows the FSENSOR is triggered it will:
                 // 1. Push the filament by additional 30mm (see fsensorToNozzle)
                 // 2. Disengage the idler and push another 2mm.
-                MoveE(logic.ExtraLoadDistance() + 2, MMU2_LOAD_TO_NOZZLE_FEED_RATE);
+                MoveE(logic.ExtraLoadDistance() + 2, logic.PulleySlowFeedRate());
                 break;
             case FilamentState::NOT_PRESENT:
                 // fsensor not triggered, continue moving extruder
@@ -1050,7 +1099,7 @@ void MMU2::OnMMUProgressMsgSame(ProgressCode pc) {
                     // than 450mm because the firmware will ignore too long extrusions
                     // for safety reasons. See PREVENT_LENGTHY_EXTRUDE.
                     // Use 350mm to be safely away from the prevention threshold
-                    MoveE(350.0f, MMU2_LOAD_TO_NOZZLE_FEED_RATE);
+                    MoveE(350.0f, logic.PulleySlowFeedRate());
                 }
                 break;
             default:

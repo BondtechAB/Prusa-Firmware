@@ -2,11 +2,10 @@
 #define TMC2130_H
 
 #include <stdint.h>
+#include "Configuration_var.h"
 
 //mode
 extern uint8_t tmc2130_mode;
-extern uint8_t tmc2130_current_h[4];
-extern uint8_t tmc2130_current_r[4];
 //microstep resolution (0 means 256usteps, 8 means 1ustep
 extern uint8_t tmc2130_mres[4];
 
@@ -58,7 +57,76 @@ typedef struct
 } tmc2130_chopper_config_t;
 #pragma pack(pop)
 
-extern tmc2130_chopper_config_t tmc2130_chopper_config[4];
+extern tmc2130_chopper_config_t tmc2130_chopper_config[NUM_AXIS];
+
+struct MotorCurrents {
+    // Refresh the vSense flag
+    // If the vSense flag changes then both Run and Hold current values
+    // must be shifted accordingly. This is done especially to handle
+    // the edge case where only either of the current values are changed at runtime.
+    // See M911 and M912
+    void refreshCurrentScaling() {
+        // IMPORTANT: iRun must have range 0 to 63 (2^6) so we can properly
+        //            update the current scaling back and forth
+
+        // Detect new vSense value
+        const bool newvSense = (iRun < 32);
+        if (vSense != newvSense) {
+            // Update currents to match current scaling
+            if (vSense) {
+                // vSense was 1 [V_FS = 0.32V] but is changing to 0 [V_FS = 0.18V]
+                // Half both current values to be in sync with current scale range
+                iHold >>= 1;
+                iRun >>= 1;
+            } else {
+                // vSense was 0 [V_FS = 0.18V], but is changing to 1 [V_FS = 0.32V]
+                // double the Hold current value
+                // iRun is expected to already be correct so no shift needed.
+                // Keep in mind, only a change in iRun can change vSense.
+                iHold <<= 1;
+            }
+
+            // Update vSense
+            vSense = newvSense;
+        } else if (!vSense) {
+            // No change in vSense, but vSense = 0, which means we must scale down the iRun value
+            // from range [0, 63] to range [0, 31]
+            iRun >>= 1;
+        }
+    }
+
+    constexpr inline __attribute__((always_inline)) MotorCurrents(uint8_t ir, uint8_t ih)
+        : vSense((ir < 32) ? 1 : 0)
+        , iRun((ir < 32) ? ir : (ir >> 1))
+        , iHold((ir < 32) ? ih : (ih >> 1)) {}
+
+    inline uint8_t getiRun() const { return iRun; }
+    inline uint8_t getiHold() const { return iHold; }
+    inline uint8_t getvSense() const { return vSense; }
+
+    void __attribute__((noinline)) setiRun(uint8_t ir) {
+        iRun = ir;
+
+        // Refresh the vSense bit and take care of updating Hold/Run currents
+        // accordingly
+        refreshCurrentScaling();
+    }
+
+    void __attribute__((noinline)) setiHold(uint8_t ih) {
+        iHold = vSense ? ih : ih >> 1;
+        // Note that iHold cannot change the vSense bit. If iHold is larger
+        // than iRun, then iHold is truncated later in SetCurrents()
+    }
+
+    private:
+        // These members are protected in order to ensure that
+        // the struct methods are used always to update these values at runtime.
+        bool vSense; ///< VSense current scaling
+        uint8_t iRun; ///< Running current
+        uint8_t iHold; ///< Holding current
+};
+
+extern MotorCurrents currents[NUM_AXIS];
 
 //initialize tmc2130
 
@@ -94,7 +162,7 @@ extern void tmc2130_sg_measure_start(uint8_t axis);
 //stop current stallguard measuring and report result
 extern uint16_t tmc2130_sg_measure_stop();
 
-extern void tmc2130_setup_chopper(uint8_t axis, uint8_t mres, uint8_t current_h, uint8_t current_r);
+extern void tmc2130_setup_chopper(uint8_t axis, uint8_t mres);
 
 //set holding current for any axis (M911)
 extern void tmc2130_set_current_h(uint8_t axis, uint8_t current);
@@ -127,7 +195,7 @@ extern void tmc2130_set_dir(uint8_t axis, uint8_t dir);
 extern void tmc2130_do_step(uint8_t axis);
 extern void tmc2130_do_steps(uint8_t axis, uint16_t steps, uint8_t dir, uint16_t delay_us);
 extern void tmc2130_goto_step(uint8_t axis, uint8_t step, uint8_t dir, uint16_t delay_us, uint16_t microstep_resolution);
-extern void tmc2130_get_wave(uint8_t axis, uint8_t* data, FILE* stream);
+extern void tmc2130_get_wave(uint8_t axis, uint8_t* data);
 extern void tmc2130_set_wave(uint8_t axis, uint8_t amp, uint8_t fac1000);
 
 extern bool tmc2130_home_calibrate(uint8_t axis);

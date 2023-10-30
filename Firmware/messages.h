@@ -32,6 +32,7 @@ extern const char MSG_COOLDOWN[];
 extern const char MSG_CRASH[];
 extern const char MSG_CRASH_DETECTED[];
 extern const char MSG_CRASHDETECT[];
+extern const char MSG_DONE[];
 extern const char MSG_ERROR[];
 extern const char MSG_EXTRUDER[];
 extern const char MSG_FANS_CHECK[];
@@ -108,6 +109,7 @@ extern const char MSG_TOTAL[];
 extern const char MSG_MATERIAL_CHANGES[];
 extern const char MSG_TOTAL_FAILURES[];
 extern const char MSG_HW_SETUP[];
+extern const char MSG_TUNE[];
 extern const char MSG_MODE[];
 extern const char MSG_HIGH_POWER[];
 extern const char MSG_AUTO_POWER[];
@@ -177,7 +179,7 @@ extern const char MSG_IR_03_OR_OLDER[];
 extern const char MSG_IR_UNKNOWN[];
 #endif
 extern const char MSG_PAUSED_THERMAL_ERROR[];
-#ifdef TEMP_MODEL
+#ifdef THERMAL_MODEL
 extern const char MSG_THERMAL_ANOMALY[];
 extern const char MSG_TM_NOT_CAL[];
 extern const char MSG_TM_ACK_ERROR[];
