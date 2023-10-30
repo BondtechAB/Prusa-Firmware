@@ -27,6 +27,7 @@
 // PSU
 // #define PSU_Delta                                 // uncomment if DeltaElectronics PSU installed
 
+
 // Uncomment the below for the E3D PT100 temperature sensor (with or without PT100 Amplifier)
 //#define E3D_PT100_EXTRUDER_WITH_AMP
 //#define E3D_PT100_EXTRUDER_NO_AMP
@@ -42,9 +43,7 @@
  *------------------------------------*/
 
 // Steps per unit {X,Y,Z,E}
-//#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,140}
 #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,400}
-//#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,560}
 
 // Endstop inverting
 #define X_MIN_ENDSTOP_INVERTING 0 // set to 1 to invert the logic of the endstop.
@@ -100,8 +99,8 @@
 #define DEFAULT_MAX_ACCELERATION_SILENT     {960, 960, 200, 5000}    // (mm/sec^2) max acceleration (M201), silent mode
 
 
-#define DEFAULT_ACCELERATION          1250   // X, Y, Z and E max acceleration in mm/s^2 for printing moves (M204S)
-#define DEFAULT_RETRACT_ACCELERATION  1250   // X, Y, Z and E max acceleration in mm/s^2 for retracts (M204T)
+#define DEFAULT_ACCELERATION          1250   // X, Y, Z and E max acceleration in mm/s^2 for printing moves (M204P)
+#define DEFAULT_RETRACT_ACCELERATION  1250   // X, Y, Z and E max acceleration in mm/s^2 for retracts (M204R)
 #define DEFAULT_TRAVEL_ACCELERATION   1250   // X, Y, Z and E max acceleration in mm/s^2 for travels (M204T)
 
 #define MANUAL_FEEDRATE {2700, 2700, 1000, 100}   // set the speeds for manual moves (mm/min)
@@ -121,7 +120,7 @@
 
 //Crash detection
 #define CRASHDET_TIMER 45 //seconds
-#define CRASHDET_COUNTER_MAX 3
+#define CRASHDET_COUNTER_MAX 3 
 
 // New XYZ calibration
 #define NEW_XYZCAL
@@ -153,7 +152,7 @@
 #define FILAMENT_SENSOR_TYPE FSENSOR_IR_ANALOG
 #define FSENSOR_PROBING
 
-// Backlash -
+// Backlash - 
 //#define BACKLASH_X
 //#define BACKLASH_Y
 
@@ -169,29 +168,29 @@
 #define DEBUG_DCODE3
 #define DEBUG_DCODE6
 
+//#define DEBUG_PULLUP_CRASH //Test Pullup crash
+
 //#define DEBUG_BUILD
 //#define DEBUG_SEC_LANG   //secondary language debug output at startup
-//#define DEBUG_W25X20CL   //debug external spi flash
+//#define DEBUG_XFLASH   //debug external spi flash
 #ifdef DEBUG_BUILD
 //#define _NO_ASM
 #define DEBUG_DCODES //D codes
 #define DEBUG_STACK_MONITOR        //Stack monitor in stepper ISR
-//#define DEBUG_FSENSOR_LOG          //Reports fsensor status to serial
 //#define DEBUG_CRASHDET_COUNTERS  //Display crash-detection counters on LCD
-//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable
-//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output
+//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable 
+//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output 
 //#define DEBUG_DISABLE_XMINLIMIT  //x min limit ignored
 //#define DEBUG_DISABLE_XMAXLIMIT  //x max limit ignored
 //#define DEBUG_DISABLE_YMINLIMIT  //y min limit ignored
 //#define DEBUG_DISABLE_YMAXLIMIT  //y max limit ignored
 //#define DEBUG_DISABLE_ZMINLIMIT  //z min limit ignored
 //#define DEBUG_DISABLE_ZMAXLIMIT  //z max limit ignored
-#define DEBUG_DISABLE_STARTMSGS //no startup messages
+#define DEBUG_DISABLE_STARTMSGS //no startup messages 
 //#define DEBUG_DISABLE_MINTEMP   //mintemp error ignored
 //#define DEBUG_DISABLE_SWLIMITS  //sw limits ignored
 //#define DEBUG_DISABLE_LCD_STATUS_LINE  //empty four lcd line
 //#define DEBUG_DISABLE_PREVENT_EXTRUDER //cold extrusion and long extrusion allowed
-//#define DEBUG_DISABLE_PRUSA_STATISTICS //disable prusa_statistics() mesages
 //#define DEBUG_DISABLE_FORCE_SELFTEST //disable force selftest
 //#define DEBUG_XSTEP_DUP_PIN 21   //duplicate x-step output to pin 21 (SCL on P3)
 //#define DEBUG_YSTEP_DUP_PIN 21   //duplicate y-step output to pin 21 (SCL on P3)
@@ -202,8 +201,6 @@
 #define PLANNER_DIAGNOSTICS // Show the planner queue status on printer display.
 #define CMD_DIAGNOSTICS //Show cmd queue length on printer display
 #endif /* DEBUG_BUILD */
-
-//#define FSENSOR_QUALITY
 
 
 #define LINEARITY_CORRECTION
@@ -225,6 +222,7 @@
 #define TMC2130_INTPOL_XY   1         // extrapolate 256 for XY axes
 #define TMC2130_INTPOL_Z    1         // extrapolate 256 for Z axis
 #define TMC2130_INTPOL_E    1         // extrapolate 256 for E axis
+// #define ALLOW_ALL_MRES
 
 #define TMC2130_PWM_GRAD_X  2         // PWMCONF
 #define TMC2130_PWM_AMPL_X  230       // PWMCONF
@@ -246,9 +244,11 @@
 #define TMC2130_PWM_AUTO_E  1         // PWMCONF
 #define TMC2130_PWM_FREQ_E  2         // PWMCONF
 
+// experimental setting for E-motor cooler operation
 #define TMC2130_PWM_GRAD_Ecool  84        // PWMCONF 730mA @ 375mm/min  970mA phase peak at feedrate 900mm/min
 #define TMC2130_PWM_AMPL_Ecool  43        // PWMCONF 500mA phase peak at feedrate 10 mm/min
 #define TMC2130_PWM_AUTO_Ecool  0         // PWMCONF
+
 #define TMC2130_TOFF_XYZ    3         // CHOPCONF // fchop = 27.778kHz
 #define TMC2130_TOFF_E      3         // CHOPCONF // fchop = 27.778kHz
 //#define TMC2130_TOFF_E      4         // CHOPCONF // fchop = 21.429kHz
@@ -284,7 +284,6 @@
 #define TMC2130_CURRENTS_FARM 36             // E 805 mA peak for ECool/farm mode
 #define TMC2130_CURRENTS_R {16, 20, 35, 30}  // default running currents for all axes
 #define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes
-// #define TMC2130_UNLOAD_CURRENT_R 12			 // lower current for M600 to protect filament sensor - Unused
 
 #define TMC2130_STEALTH_Z
 #define TMC2130_DEDGE_STEPPING
@@ -366,7 +365,7 @@
 #define FILAMENTCHANGE_FIRSTRETRACT -2
 #define FILAMENTCHANGE_FINALRETRACT 0
 
-#define FILAMENTCHANGE_FIRSTFEED 60 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+#define FILAMENTCHANGE_FIRSTFEED 40 //E distance in mm for fast filament loading sequence used used in filament change (M600)
 #define FILAMENTCHANGE_FINALFEED 35 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
 #define FILAMENTCHANGE_RECFEED 5
 
@@ -392,26 +391,26 @@
 #define TEMP_RUNAWAY_EXTRUDER_TIMEOUT 45
 
 // model-based temperature check
-#define TEMP_MODEL 1              // enable model-based temperature checks
-#define TEMP_MODEL_DEBUG 1        // extended runtime logging
+#define THERMAL_MODEL 1              // enable model-based temperature checks
+#define THERMAL_MODEL_DEBUG 1        // extended runtime logging
 
-#define TEMP_MODEL_CAL_C_low 5    // C estimation lower limit
-#define TEMP_MODEL_CAL_C_high 20  // C estimation upper limit
-#define TEMP_MODEL_CAL_C_thr 0.01 // C estimation iteration threshold
-#define TEMP_MODEL_CAL_C_itr 30   // C estimation iteration limit
+#define THERMAL_MODEL_CAL_C_low 5    // C estimation lower limit
+#define THERMAL_MODEL_CAL_C_high 20  // C estimation upper limit
+#define THERMAL_MODEL_CAL_C_thr 0.01 // C estimation iteration threshold
+#define THERMAL_MODEL_CAL_C_itr 30   // C estimation iteration limit
 
-#define TEMP_MODEL_CAL_R_low 5    // R estimation lower limit
-#define TEMP_MODEL_CAL_R_high 50  // R estimation upper limit
-#define TEMP_MODEL_CAL_R_thr 0.01 // R estimation iteration threshold
-#define TEMP_MODEL_CAL_R_itr 30   // R estimation iteration limit
+#define THERMAL_MODEL_CAL_R_low 5    // R estimation lower limit
+#define THERMAL_MODEL_CAL_R_high 50  // R estimation upper limit
+#define THERMAL_MODEL_CAL_R_thr 0.01 // R estimation iteration threshold
+#define THERMAL_MODEL_CAL_R_itr 30   // R estimation iteration limit
 
-#define TEMP_MODEL_CAL_T_low 50   // Default calibration cooling temperature (C)
-#define TEMP_MODEL_CAL_T_high 230 // Default calibration working temperature (C)
+#define THERMAL_MODEL_CAL_T_low 50   // Default calibration cooling temperature (C)
+#define THERMAL_MODEL_CAL_T_high 230 // Default calibration working temperature (C)
 
-#define TEMP_MODEL_Ta_corr -7     // Default ambient temperature correction
+#define THERMAL_MODEL_Ta_corr -7     // Default ambient temperature correction
 
-#include "temp_model/e3d_v6.h"
-#define TEMP_MODEL_DEFAULT E3D_V6 // Default model parameters
+#include "thermal_model/e3d_v6.h"
+#define THERMAL_MODEL_DEFAULT E3D_V6 // Default model parameters
 
 
 /*------------------------------------
@@ -510,6 +509,7 @@
 
 #define PLA_PREHEAT_HOTEND_TEMP 215
 #define PLA_PREHEAT_HPB_TEMP 60
+
 #define PVB_PREHEAT_HOTEND_TEMP 215
 #define PVB_PREHEAT_HPB_TEMP 75
 
@@ -536,6 +536,10 @@
 
 #define FLEX_PREHEAT_HOTEND_TEMP 240
 #define FLEX_PREHEAT_HPB_TEMP 50
+
+#define LCD_JUMP_HOTEND_TEMP 200
+#define LCD_JUMP_BED_TEMP 50
+#define LCD_JUMP_FAN_SPEED 127
 
 /*------------------------------------
  THERMISTORS SETTINGS
@@ -601,9 +605,6 @@
 #define MAX_BED_TEMP_CALIBRATION 50
 #define MAX_HOTEND_TEMP_CALIBRATION 50
 
-#define MAX_E_STEPS_PER_UNIT 250
-#define MIN_E_STEPS_PER_UNIT 100
-
 #define Z_BABYSTEP_MIN -3999
 #define Z_BABYSTEP_MAX 0
 
@@ -641,7 +642,7 @@
 // "dropsegments" steps long. All the above rules still need to apply.
 #define UVLO_TINY_Z_AXIS_SHIFT 0.16
 // If power panic occured, and the current temperature is higher then target temperature before interrupt minus this offset, print will be recovered automatically.
-#define AUTOMATIC_UVLO_BED_TEMP_OFFSET 5
+#define AUTOMATIC_UVLO_BED_TEMP_OFFSET 5 
 
 #define HEATBED_V2
 

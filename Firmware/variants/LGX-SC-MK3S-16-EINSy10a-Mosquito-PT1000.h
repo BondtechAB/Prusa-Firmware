@@ -8,7 +8,6 @@
  *------------------------------------*/
 
 // Printer revision
-<<<<<<<< HEAD:Firmware/variants/LGX-SC-MK3S-16-EINSy10a-Mosquito-PT1000.h
 #define PRINTER_TYPE PRINTER_MK3S
 #define PRINTER_NAME PRINTER_MK3S_NAME
 #define PRINTER_NAME_ALTERNATE PRINTER_MK3_NAME //the other similar printer to this.
@@ -16,15 +15,6 @@
 #define PRINTER_MMU_NAME PRINTER_MK3S_MMU3_NAME
 #define FILAMENT_SIZE "1_75mm_MK3S"
 #define NOZZLE_TYPE "E3Dv6full"
-========
-#define PRINTER_TYPE PRINTER_MK3
-#define PRINTER_NAME PRINTER_MK3_NAME
-#define PRINTER_NAME_ALTERNATE PRINTER_MK3S_NAME //the other similar printer to this.
-#define PRINTER_MMU_TYPE PRINTER_MK3_MMU3
-#define PRINTER_MMU_NAME PRINTER_MK3_MMU3_NAME
-#define FILAMENT_SIZE "1_75mm_MK3"
-#define NOZZLE_TYPE "E3DREVO"
->>>>>>>> upstream/MK3_3.13.2:Firmware/variants/MK3-E3DREVO.h
 
 // Printer name
 #define CUSTOM_MENDEL_NAME "LGXSM-PT1000"
@@ -36,6 +26,7 @@
 
 // PSU
 // #define PSU_Delta                                 // uncomment if DeltaElectronics PSU installed
+
 
 // Uncomment the below for the E3D PT100 temperature sensor (with or without PT100 Amplifier)
 //#define E3D_PT100_EXTRUDER_WITH_AMP
@@ -52,13 +43,7 @@
  *------------------------------------*/
 
 // Steps per unit {X,Y,Z,E}
-<<<<<<<< HEAD:Firmware/variants/LGX-SC-MK3S-16-EINSy10a-Mosquito-PT1000.h
-//#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,140}
 #define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,400}
-//#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,560}
-========
-#define DEFAULT_AXIS_STEPS_PER_UNIT   {100,100,3200/8,280}
->>>>>>>> upstream/MK3_3.13.2:Firmware/variants/MK3-E3DREVO.h
 
 // Endstop inverting
 #define X_MIN_ENDSTOP_INVERTING 0 // set to 1 to invert the logic of the endstop.
@@ -114,8 +99,8 @@
 #define DEFAULT_MAX_ACCELERATION_SILENT     {960, 960, 200, 5000}    // (mm/sec^2) max acceleration (M201), silent mode
 
 
-#define DEFAULT_ACCELERATION          1250   // X, Y, Z and E max acceleration in mm/s^2 for printing moves (M204S)
-#define DEFAULT_RETRACT_ACCELERATION  1250   // X, Y, Z and E max acceleration in mm/s^2 for retracts (M204T)
+#define DEFAULT_ACCELERATION          1250   // X, Y, Z and E max acceleration in mm/s^2 for printing moves (M204P)
+#define DEFAULT_RETRACT_ACCELERATION  1250   // X, Y, Z and E max acceleration in mm/s^2 for retracts (M204R)
 #define DEFAULT_TRAVEL_ACCELERATION   1250   // X, Y, Z and E max acceleration in mm/s^2 for travels (M204T)
 
 #define MANUAL_FEEDRATE {2700, 2700, 1000, 100}   // set the speeds for manual moves (mm/min)
@@ -135,7 +120,7 @@
 
 //Crash detection
 #define CRASHDET_TIMER 45 //seconds
-#define CRASHDET_COUNTER_MAX 3
+#define CRASHDET_COUNTER_MAX 3 
 
 // New XYZ calibration
 #define NEW_XYZCAL
@@ -167,7 +152,7 @@
 #define FILAMENT_SENSOR_TYPE FSENSOR_IR_ANALOG
 #define FSENSOR_PROBING
 
-// Backlash -
+// Backlash - 
 //#define BACKLASH_X
 //#define BACKLASH_Y
 
@@ -187,21 +172,21 @@
 
 //#define DEBUG_BUILD
 //#define DEBUG_SEC_LANG   //secondary language debug output at startup
-//#define DEBUG_W25X20CL   //debug external spi flash
+//#define DEBUG_XFLASH   //debug external spi flash
 #ifdef DEBUG_BUILD
 //#define _NO_ASM
 #define DEBUG_DCODES //D codes
 #define DEBUG_STACK_MONITOR        //Stack monitor in stepper ISR
 //#define DEBUG_CRASHDET_COUNTERS  //Display crash-detection counters on LCD
-//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable
-//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output
+//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable 
+//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output 
 //#define DEBUG_DISABLE_XMINLIMIT  //x min limit ignored
 //#define DEBUG_DISABLE_XMAXLIMIT  //x max limit ignored
 //#define DEBUG_DISABLE_YMINLIMIT  //y min limit ignored
 //#define DEBUG_DISABLE_YMAXLIMIT  //y max limit ignored
 //#define DEBUG_DISABLE_ZMINLIMIT  //z min limit ignored
 //#define DEBUG_DISABLE_ZMAXLIMIT  //z max limit ignored
-#define DEBUG_DISABLE_STARTMSGS //no startup messages
+#define DEBUG_DISABLE_STARTMSGS //no startup messages 
 //#define DEBUG_DISABLE_MINTEMP   //mintemp error ignored
 //#define DEBUG_DISABLE_SWLIMITS  //sw limits ignored
 //#define DEBUG_DISABLE_LCD_STATUS_LINE  //empty four lcd line
@@ -259,9 +244,11 @@
 #define TMC2130_PWM_AUTO_E  1         // PWMCONF
 #define TMC2130_PWM_FREQ_E  2         // PWMCONF
 
+// experimental setting for E-motor cooler operation
 #define TMC2130_PWM_GRAD_Ecool  84        // PWMCONF 730mA @ 375mm/min  970mA phase peak at feedrate 900mm/min
 #define TMC2130_PWM_AMPL_Ecool  43        // PWMCONF 500mA phase peak at feedrate 10 mm/min
 #define TMC2130_PWM_AUTO_Ecool  0         // PWMCONF
+
 #define TMC2130_TOFF_XYZ    3         // CHOPCONF // fchop = 27.778kHz
 #define TMC2130_TOFF_E      3         // CHOPCONF // fchop = 27.778kHz
 //#define TMC2130_TOFF_E      4         // CHOPCONF // fchop = 21.429kHz
@@ -297,7 +284,6 @@
 #define TMC2130_CURRENTS_FARM 36             // E 805 mA peak for ECool/farm mode
 #define TMC2130_CURRENTS_R {16, 20, 35, 30}  // default running currents for all axes
 #define TMC2130_CURRENTS_R_HOME {8, 10, 20, 18}  // homing running currents for all axes
-// #define TMC2130_UNLOAD_CURRENT_R 12			 // lower current for M600 to protect filament sensor - Unused
 
 #define TMC2130_STEALTH_Z
 #define TMC2130_DEDGE_STEPPING
@@ -379,13 +365,13 @@
 #define FILAMENTCHANGE_FIRSTRETRACT -2
 #define FILAMENTCHANGE_FINALRETRACT 0
 
-#define FILAMENTCHANGE_FIRSTFEED 60 //E distance in mm for fast filament loading sequence used used in filament change (M600)
+#define FILAMENTCHANGE_FIRSTFEED 40 //E distance in mm for fast filament loading sequence used used in filament change (M600)
 #define FILAMENTCHANGE_FINALFEED 35 //E distance in mm for slow filament loading sequence used used in filament change (M600) and filament load (M701)
 #define FILAMENTCHANGE_RECFEED 5
 
 #define FILAMENTCHANGE_XYFEED 50
-#define FILAMENTCHANGE_EFEED_FIRST 20 // feedrate in mm/s for fast filament loading sequence used in filament change (M600)
-#define FILAMENTCHANGE_EFEED_FINAL 3.3f // feedrate in mm/s for slow filament loading sequence used in filament change (M600) and filament load (M701)
+#define FILAMENTCHANGE_EFEED_FIRST 23 // feedrate in mm/s for fast filament loading sequence used in filament change (M600)
+#define FILAMENTCHANGE_EFEED_FINAL 3.3f // feedrate in mm/s for slow filament loading sequence used in filament change (M600) and filament load (M701) 
 //#define FILAMENTCHANGE_RFEED 400
 #define FILAMENTCHANGE_RFEED 7000 / 60
 #define FILAMENTCHANGE_EXFEED 2
@@ -423,13 +409,8 @@
 
 #define THERMAL_MODEL_Ta_corr -7     // Default ambient temperature correction
 
-<<<<<<<< HEAD:Firmware/variants/LGX-SC-MK3S-16-EINSy10a-Mosquito-PT1000.h
-#include "temp_model/e3d_v6.h"
-#define TEMP_MODEL_DEFAULT E3D_V6 // Default model parameters
-========
-#include "thermal_model/e3d_REVO.h"
-#define THERMAL_MODEL_DEFAULT E3D_REVO // Default E3D REVO model parameters
->>>>>>>> upstream/MK3_3.13.2:Firmware/variants/MK3-E3DREVO.h
+#include "thermal_model/e3d_v6.h"
+#define THERMAL_MODEL_DEFAULT E3D_V6 // Default model parameters
 
 
 /*------------------------------------
@@ -528,6 +509,7 @@
 
 #define PLA_PREHEAT_HOTEND_TEMP 215
 #define PLA_PREHEAT_HPB_TEMP 60
+
 #define PVB_PREHEAT_HOTEND_TEMP 215
 #define PVB_PREHEAT_HPB_TEMP 75
 
@@ -660,7 +642,7 @@
 // "dropsegments" steps long. All the above rules still need to apply.
 #define UVLO_TINY_Z_AXIS_SHIFT 0.16
 // If power panic occured, and the current temperature is higher then target temperature before interrupt minus this offset, print will be recovered automatically.
-#define AUTOMATIC_UVLO_BED_TEMP_OFFSET 5
+#define AUTOMATIC_UVLO_BED_TEMP_OFFSET 5 
 
 #define HEATBED_V2
 
