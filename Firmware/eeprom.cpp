@@ -32,7 +32,7 @@ void eeprom_init()
         int last_babystep = eeprom_read_word((uint16_t *)EEPROM_BABYSTEP_Z);
         eeprom_update_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[0].z_offset)), last_babystep);
     }
-
+    
     // initialize the sheet names in eeprom
     for (uint_least8_t i = 0; i < (sizeof(Sheets::s)/sizeof(Sheets::s[0])); i++) {
         SheetName sheetName;
