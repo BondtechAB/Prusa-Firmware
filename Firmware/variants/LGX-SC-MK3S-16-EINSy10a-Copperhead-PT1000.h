@@ -27,7 +27,6 @@
 // PSU
 // #define PSU_Delta                                 // uncomment if DeltaElectronics PSU installed
 
-
 // Uncomment the below for the E3D PT100 temperature sensor (with or without PT100 Amplifier)
 //#define E3D_PT100_EXTRUDER_WITH_AMP
 //#define E3D_PT100_EXTRUDER_NO_AMP
@@ -169,9 +168,7 @@
 #define DEBUG_DCODE6
 
 //#define DEBUG_PULLUP_CRASH //Test Pullup crash
-//#define DEBUG_PRINTER_STATES
 
-//#define DEBUG_EEPROM_CHANGES //Uses +1188 bytes Flash +6 bytes SRAM
 //#define DEBUG_BUILD
 //#define DEBUG_SEC_LANG   //secondary language debug output at startup
 //#define DEBUG_XFLASH   //debug external spi flash
@@ -345,7 +342,7 @@
 #define EXTRUDE_MINTEMP 175
 
 // Quick nozzle change supported
-#define QUICK_NOZZLE_CHANGE
+//#define QUICK_NOZZLE_CHANGE
 
 // Extruder cooling fans
 #define EXTRUDER_0_AUTO_FAN_PIN   8

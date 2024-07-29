@@ -341,6 +341,9 @@
 // Extrude mintemp
 #define EXTRUDE_MINTEMP 175
 
+// Quick nozzle change supported
+//#define QUICK_NOZZLE_CHANGE
+
 // Extruder cooling fans
 #define EXTRUDER_0_AUTO_FAN_PIN   8
 #define EXTRUDER_AUTO_FAN_TEMPERATURE 50
@@ -375,6 +378,15 @@
 #define FILAMENTCHANGE_RFEED 7000 / 60
 #define FILAMENTCHANGE_EXFEED 2
 #define FILAMENTCHANGE_ZFEED 15
+
+//Retract and then extrude some filament to prevent oozing.
+//After the loading sequence and after a print is canceled, the filament is retracted to get it out of the heat zone of the nozzle.
+//Then a small extrusion is performed to make sure the filament is close enough for the next print without oozing.
+//#define COMMUNITY_PREVENT_OOZE
+#ifdef COMMUNITY_PREVENT_OOZE
+#define FILAMENTCHANGE_COMMUNITY_ROOZEFEED -10 //E retract distance in mm for ooze prevention
+#define FILAMENTCHANGE_COMMUNITY_EOOZEFEED 4 //E extrude distance in mm for ooze prevention
+#endif //End COMMUNITY_PREVENT_OOZE
 
 #endif
 
@@ -411,6 +423,11 @@
 #include "thermal_model/e3d_v6.h"
 #define THERMAL_MODEL_DEFAULT E3D_V6 // Default model parameters
 
+/*------------------------------------
+ HOST FEATURES
+ *------------------------------------*/
+
+//#define HOST_SHUTDOWN              //Host supports "//action:shutdown" feature
 
 /*------------------------------------
  MOTOR CURRENT SETTINGS
@@ -428,12 +445,6 @@
 #ifdef MESH_BED_LEVELING
 
 #define MBL_Z_STEP 0.01
-
-// Mesh definitions
-#define MESH_MIN_X 24
-#define MESH_MAX_X 228
-#define MESH_MIN_Y 6
-#define MESH_MAX_Y 210
 
 // Mesh upsample definition
 #define MESH_NUM_X_POINTS 7
