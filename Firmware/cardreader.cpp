@@ -7,6 +7,8 @@
 #include "temperature.h"
 #include "language.h"
 #include "Prusa_farm.h"
+#include "power_panic.h"
+#include "stopwatch.h"
 
 #ifdef SDSUPPORT
 
@@ -22,7 +24,7 @@ CardReader::CardReader()
    filesize = 0;
    sdpos = 0;
    sdprinting = false;
-   cardOK = false;
+   mounted = false;
    saving = false;
    logging = false;
    workDirDepth = 0;
@@ -196,9 +198,9 @@ void CardReader::ls(ls_param params)
 }
 
 
-void CardReader::initsd(bool doPresort/* = true*/)
+void CardReader::mount(bool doPresort/* = true*/)
 {
-  cardOK = false;
+  mounted = false;
   if(root.isOpen())
     root.close();
 #ifdef SDSLOW
@@ -224,33 +226,21 @@ void CardReader::initsd(bool doPresort/* = true*/)
   }
   else 
   {
-    cardOK = true;
+    mounted = true;
     SERIAL_ECHO_START;
     SERIAL_ECHOLNRPGM(_n("SD card ok"));////MSG_SD_CARD_OK
   }
-  workDir=root;
-  curDir=&root;
-  workDirDepth = 0;
 
-  #ifdef SDCARD_SORT_ALPHA
-  if (doPresort)
-    presort();
-  #endif
-
-  /*
-  if(!workDir.openRoot(&volume))
+  if (mounted)
   {
-    SERIAL_ECHOLNPGM(MSG_SD_WORKDIR_FAIL);
+    cdroot(doPresort);
   }
-  */
-  
 }
 
-void CardReader::setroot(bool doPresort)
+void __attribute__((noinline)) CardReader::cdroot(bool doPresort)
 {
   workDir=root;
   workDirDepth = 0;
-  
   curDir=&workDir;
 #ifdef SDCARD_SORT_ALPHA
 	if (doPresort)
@@ -262,16 +252,17 @@ void CardReader::setroot(bool doPresort)
 void CardReader::release()
 {
   sdprinting = false;
-  cardOK = false;
+  mounted = false;
   SERIAL_ECHO_START;
   SERIAL_ECHOLNRPGM(_n("SD card released"));////MSG_SD_CARD_RELEASED
 }
 
 void CardReader::startFileprint()
 {
-  if(cardOK)
+  if(mounted)
   {
     sdprinting = true;
+    SetPrinterState(PrinterState::IsSDPrinting); //set printer state to hide LCD menu
 	#ifdef SDCARD_SORT_ALPHA
 		//flush_presort();
 	#endif
@@ -343,7 +334,7 @@ bool CardReader::diveSubfolder (const char *&fileName)
     const char *dirname_start, *dirname_end;
     if (fileName[0] == '/') // absolute path
     {
-        setroot(false);
+        cdroot(false);
         dirname_start = fileName + 1;
         while (*dirname_start)
         {
@@ -393,7 +384,7 @@ static const char ofSDPrinting[] PROGMEM = "SD-PRINTING";
 static const char ofWritingToFile[] PROGMEM = "Writing to file: ";
 
 void CardReader::openFileReadFilteredGcode(const char* name, bool replace_current/* = false*/){
-    if(!cardOK)
+    if(!mounted)
         return;
     
     if(file.isOpen()){  //replacing current file by new file, or subfile call
@@ -458,7 +449,7 @@ void CardReader::openFileReadFilteredGcode(const char* name, bool replace_curren
 
 void CardReader::openFileWrite(const char* name)
 {
-    if(!cardOK)
+    if(!mounted)
         return;
     if(file.isOpen()){  //replacing current file by new file, or subfile call
 #if 0
@@ -522,7 +513,7 @@ void CardReader::openFileWrite(const char* name)
 
 void CardReader::removeFile(const char* name)
 {
-    if(!cardOK) return;
+    if(!mounted) return;
     file.close();
     sdprinting = false;
 
@@ -555,9 +546,9 @@ uint32_t CardReader::getFileSize()
 
 void CardReader::getStatus(bool arg_P)
 {
-    if (isPrintPaused)
+    if (printingIsPaused())
     {
-        if (saved_printing && (saved_printing_type == PRINTING_TYPE_SD))
+        if (saved_printing && (saved_printing_type == PowerPanic::PRINT_TYPE_SD))
             SERIAL_PROTOCOLLNPGM("SD print paused");
         else
             SERIAL_PROTOCOLLNPGM("Print saved");
@@ -576,7 +567,7 @@ void CardReader::getStatus(bool arg_P)
         SERIAL_PROTOCOL(sdpos);
         SERIAL_PROTOCOL('/');
         SERIAL_PROTOCOLLN(filesize);
-        uint16_t time = ( _millis() - starttime ) / 60000U;
+        uint16_t time = print_job_timer.duration() / 60;
         SERIAL_PROTOCOL((int)(time / 60));
         SERIAL_PROTOCOL(':');
         SERIAL_PROTOCOLLN((int)(time % 60));
@@ -623,10 +614,10 @@ void CardReader::checkautostart(bool force)
       return;
   }
   autostart_stilltocheck = false;
-  if(!cardOK)
+  if(!mounted)
   {
-    initsd();
-    if(!cardOK) //fail
+    mount();
+    if(!mounted) //fail
       return;
   }
   
@@ -811,7 +802,7 @@ void CardReader::presort() {
 		// If you use folders to organize, 20 may be enough
 		if (fileCnt > SDSORT_LIMIT) {
 			if ((sdSort != SD_SORT_NONE) && !farm_mode) {
-				lcd_show_fullscreen_message_and_wait_P(_i("Some files will not be sorted. Max. No. of files in 1 folder for sorting is 100."));////MSG_FILE_CNT c=20 r=6
+				lcd_show_fullscreen_message_and_wait_P(_T(MSG_FILE_CNT));
 			}
 			fileCnt = SDSORT_LIMIT;
 		}
@@ -1017,6 +1008,7 @@ void CardReader::printingHasFinished()
     else
     {
       sdprinting = false;
+      SetPrinterState(PrinterState::SDPrintingFinished); //set printer state to show LCD menu after finished SD print
       if(SD_FINISHED_STEPPERRELEASE)
       {
           finishAndDisableSteppers();
@@ -1033,6 +1025,19 @@ bool CardReader::ToshibaFlashAir_GetIP(uint8_t *ip)
 {
     memset(ip, 0, 4);
     return card.readExtMemory(1, 1, 0x400+0x150, 4, ip);
+}
+
+//Used for Reprint action
+bool CardReader::FileExists(const char* filename)
+{
+  bool exists = false;
+
+    if (file.open(curDir, filename, O_READ))
+    {
+      exists = true;
+      file.close();
+    }
+    return exists;
 }
 
 #endif //SDSUPPORT

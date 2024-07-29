@@ -68,6 +68,7 @@
 #include "backlight.h"
 
 #include "planner.h"
+#include "host.h"
 #include "stepper.h"
 #include "temperature.h"
 #include "fancheck.h"
@@ -88,6 +89,7 @@
 #include "Tcodes.h"
 #include "Dcodes.h"
 #include "SpoolJoin.h"
+#include "stopwatch.h"
 
 #ifndef LA_NOCOMPAT
 #include "la10compat.h"
@@ -148,16 +150,12 @@
 CardReader card;
 #endif
 
-uint8_t mbl_z_probe_nr = 3; //numer of Z measurements for each point in mesh bed leveling calibration
-
 //used for PINDA temp calibration and pause print
 #define DEFAULT_RETRACTION    1
 #define DEFAULT_RETRACTION_MM 4 //MM
 
 float default_retraction = DEFAULT_RETRACTION;
 
-
-float homing_feedrate[] = HOMING_FEEDRATE;
 
 //Although this flag and many others like this could be represented with a struct/bitfield for each axis (more readable and efficient code), the implementation
 //would not be standard across all platforms. That being said, the code will continue to use bitmasks for independent axis.
@@ -169,6 +167,7 @@ int feedmultiply=100; //100->1 200->2
 int extrudemultiply=100; //100->1 200->2
 
 bool homing_flag = false;
+bool did_pause_print;
 
 LongTimer safetyTimer;
 static LongTimer crashDetTimer;
@@ -177,7 +176,7 @@ static LongTimer crashDetTimer;
 
 bool mesh_bed_leveling_flag = false;
 
-uint32_t total_filament_used;
+uint32_t total_filament_used; // unit mm/100 or 10um
 HeatingStatus heating_status;
 int fan_edge_counter[2];
 int fan_speed[2];
@@ -202,6 +201,8 @@ float current_position[NUM_AXIS] = { 0.0, 0.0, 0.0, 0.0 };
 float min_pos[3] = { X_MIN_POS, Y_MIN_POS, Z_MIN_POS };
 float max_pos[3] = { X_MAX_POS, Y_MAX_POS, Z_MAX_POS };
 bool axis_known_position[3] = {false, false, false};
+
+static float pause_position[3] = { X_PAUSE_POS, Y_PAUSE_POS, Z_PAUSE_LIFT };
 
 uint8_t fanSpeed = 0;
 uint8_t newFanSpeed = 0;
@@ -271,7 +272,7 @@ const char axis_codes[NUM_AXIS] = {'X', 'Y', 'Z', 'E'};
 float destination[NUM_AXIS] = {  0.0, 0.0, 0.0, 0.0};
 
 // For tracing an arc
-static float offset[3] = {0.0, 0.0, 0.0};
+static float offset[2] = {0.0, 0.0};
 
 // Current feedrate
 float feedrate = 1500.0;
@@ -290,9 +291,6 @@ static uint32_t max_inactive_time = 0;
 static uint32_t stepper_inactive_time = DEFAULT_STEPPER_DEACTIVE_TIME*1000l;
 static uint32_t safetytimer_inactive_time = DEFAULT_SAFETYTIMER_TIME_MINS*60*1000ul;
 
-uint32_t starttime;
-uint32_t pause_time;
-uint32_t start_pause_print;
 ShortTimer usb_timer;
 
 bool Stopped=false;
@@ -314,7 +312,7 @@ static bool chdkActive = false;
 //! @{
 bool saved_printing = false; //!< Print is paused and saved in RAM
 uint32_t saved_sdpos = 0; //!< SD card position, or line number in case of USB printing
-uint8_t saved_printing_type = PRINTING_TYPE_SD;
+uint8_t saved_printing_type = PowerPanic::PRINT_TYPE_NONE;
 float saved_pos[NUM_AXIS] = { X_COORD_INVALID, 0, 0, 0 };
 uint16_t saved_feedrate2 = 0; //!< Default feedrate (truncated from float)
 static int saved_feedmultiply2 = 0;
@@ -323,6 +321,7 @@ uint8_t saved_bed_temperature; //!< Bed temperature
 bool saved_extruder_relative_mode;
 uint8_t saved_fan_speed = 0; //!< Print fan speed
 //! @}
+static bool uvlo_auto_recovery_ready = false;
 
 static int saved_feedmultiply_mm = 100;
 
@@ -510,17 +509,77 @@ void servo_init()
 }
 
 bool __attribute__((noinline)) printJobOngoing() {
-    return (IS_SD_PRINTING || usb_timer.running());
+    return (IS_SD_PRINTING || usb_timer.running() || print_job_timer.isRunning());
+}
+
+bool printingIsPaused() {
+  return did_pause_print || print_job_timer.isPaused();
 }
 
 bool __attribute__((noinline)) printer_active() {
     return printJobOngoing()
-        || isPrintPaused
+        || printingIsPaused()
         || saved_printing
         || (lcd_commands_type != LcdCommands::Idle)
         || MMU2::mmu2.MMU_PRINT_SAVED()
         || homing_flag
         || mesh_bed_leveling_flag;
+}
+
+#ifdef DEBUG_PRINTER_STATES
+//! @brief debug printer states
+//!
+//! This outputs a lot over serial and should be only used
+//! - when debugging LCD menus
+//! - or other functions related to these states
+//! To reduce the output feel free to comment out the lines you
+//! aren't troubleshooting.
+
+void debug_printer_states()
+{
+    printf_P(PSTR("DBG:printJobOngoing() = %d\n"), (int)printJobOngoing());
+    printf_P(PSTR("DBG:IS_SD_PRINTING = %d\n"), (int)IS_SD_PRINTING);
+    printf_P(PSTR("DBG:printer_recovering() = %d\n"), (int)printer_recovering());
+    printf_P(PSTR("DBG:heating_status = %d\n"), (int)heating_status);
+    printf_P(PSTR("DBG:GetPrinterState() = %d\n"), (int)GetPrinterState());
+    printf_P(PSTR("DBG:babystep_allowed_strict() = %d\n"), (int)babystep_allowed_strict());
+    printf_P(PSTR("DBG:lcd_commands_type = %d\n"), (int)lcd_commands_type);
+    printf_P(PSTR("DBG:farm_mode = %d\n"), (int)farm_mode);
+    printf_P(PSTR("DBG:moves_planned() = %d\n"), (int)moves_planned());
+    printf_P(PSTR("DBG:Stopped = %d\n"), (int)Stopped);
+    printf_P(PSTR("DBG:usb_timer.running() = %d\n"), (int)usb_timer.running());
+    printf_P(PSTR("DBG:M79_timer_get_status() = %d\n"), (int)M79_timer_get_status());
+    printf_P(PSTR("DBG:print_job_timer.isRunning() = %d\n"), (int)print_job_timer.isRunning());
+    printf_P(PSTR("DBG:printingIsPaused() = %d\n"), (int)printingIsPaused());
+    printf_P(PSTR("DBG:did_pause_print = %d\n"), (int)did_pause_print);
+    printf_P(PSTR("DBG:print_job_timer.isPaused() = %d\n"), (int)print_job_timer.isPaused());
+    printf_P(PSTR("DBG:saved_printing = %d\n"), (int)saved_printing);
+    printf_P(PSTR("DBG:saved_printing_type = %d\n"), (int)saved_printing_type);
+    printf_P(PSTR("DBG:homing_flag = %d\n"), (int)homing_flag);
+    printf_P(PSTR("DBG:mesh_bed_leveling_flag = %d\n"), (int)mesh_bed_leveling_flag);
+    printf_P(PSTR("DBG:get_temp_error() = %d\n"), (int)get_temp_error());
+    printf_P(PSTR("DBG:card.mounted = %d\n"), (int)card.mounted);
+    printf_P(PSTR("DBG:card.isFileOpen() = %d\n"), (int)card.isFileOpen());
+    printf_P(PSTR("DBG:fan_check_error = %d\n"), (int)fan_check_error);
+    printf_P(PSTR("DBG:processing_tcode = %d\n"), (int)processing_tcode);
+    printf_P(PSTR("DBG:nextSheet = %d\n"), (int)eeprom_next_initialized_sheet(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet))));
+    printf_P(PSTR("DBG:eFilamentAction = %d\n"), (int)eFilamentAction);
+    printf_P(PSTR("DBG:MMU2::mmu2.Enabled() = %d\n"), (int)MMU2::mmu2.Enabled());
+    printf_P(PSTR("DBG:MMU2::mmu2.MMU_PRINT_SAVED() = %d\n"), (int)MMU2::mmu2.MMU_PRINT_SAVED());
+    printf_P(PSTR("DBG:MMU2::mmu2.FindaDetectsFilament() = %d\n"), (int)MMU2::mmu2.FindaDetectsFilament());
+    printf_P(PSTR("DBG:fsensor.getFilamentPresent() = %d\n"), (int)fsensor.getFilamentPresent());
+    printf_P(PSTR("DBG:MMU CUTTER ENABLED = %d\n"), (int)eeprom_read_byte((uint8_t*)EEPROM_MMU_CUTTER_ENABLED));
+    printf_P(PSTR("DBG:fsensor.isEnabled() = %d\n"), (int)fsensor.isEnabled());
+    printf_P(PSTR("DBG:fsensor.getAutoLoadEnabled() = %d\n"), (int)fsensor.getAutoLoadEnabled());
+    printf_P(PSTR("DBG:custom_message_type = %d\n"), (int)custom_message_type);
+    printf_P(PSTR("DBG:uvlo_auto_recovery_ready = %d\n"), (int)uvlo_auto_recovery_ready);
+    SERIAL_ECHOLN("");
+}
+#endif //End DEBUG_PRINTER_STATES
+
+// Block LCD menus when
+bool __attribute__((noinline)) printer_recovering() {
+    return (eeprom_read_byte((uint8_t*)EEPROM_UVLO) != PowerPanic::NO_PENDING_RECOVERY);
 }
 
 // Currently only used in one place, allowed to be inlined
@@ -536,7 +595,7 @@ bool check_fsensor() {
 bool __attribute__((noinline)) babystep_allowed() {
     return ( !homing_flag
         && !mesh_bed_leveling_flag
-        && !isPrintPaused
+        && !printingIsPaused()
         && ((lcd_commands_type == LcdCommands::Layer1Cal && CHECK_ALL_HEATERS)
             || printJobOngoing()
             || lcd_commands_type == LcdCommands::Idle
@@ -559,8 +618,8 @@ void crashdet_stop_and_save_print()
 
 void crashdet_restore_print_and_continue()
 {
-	restore_print_from_ram_and_continue(default_retraction); //XYZ = orig, E +1mm unretract
-//	babystep_apply();
+  restore_print_from_ram_and_continue(default_retraction); //XYZ = orig, E +1mm unretract
+//babystep_apply();
 }
 
 void crashdet_fmt_error(char* buf, uint8_t mask)
@@ -620,7 +679,7 @@ void crashdet_detected(uint8_t mask)
         // ask whether to resume printing
         lcd_puts_at_P(0, 1, _T(MSG_RESUME_PRINT));
         lcd_putc('?');
-        uint8_t yesno = lcd_show_yes_no_and_wait(false);
+        uint8_t yesno = lcd_show_yes_no_and_wait(false, LCD_LEFT_BUTTON_CHOICE);
 		if (yesno == LCD_LEFT_BUTTON_CHOICE)
 		{
 			enquecommand_P(PSTR("CRASH_RECOVER"));
@@ -634,32 +693,29 @@ void crashdet_detected(uint8_t mask)
 
 void crashdet_recover()
 {
-	crashdet_restore_print_and_continue();
-	if (lcd_crash_detect_enabled()) tmc2130_sg_stop_on_crash = true;
+	if (!printingIsPaused()) crashdet_restore_print_and_continue();
+	crashdet_use_eeprom_setting();
 }
 
-void crashdet_cancel()
-{
-	saved_printing = false;
-	tmc2130_sg_stop_on_crash = true;
-	if (saved_printing_type == PRINTING_TYPE_SD) {
-		print_stop();
-	}else if(saved_printing_type == PRINTING_TYPE_USB){
-		SERIAL_ECHOLNRPGM(MSG_OCTOPRINT_CANCEL); //for Octoprint: works the same as clicking "Abort" button in Octoprint GUI
-		cmdqueue_reset();
-	}
+/// Crash detection cancels the print
+void crashdet_cancel() {
+    // Restore crash detection
+    crashdet_use_eeprom_setting();
+
+    // Abort the print
+    print_stop();
 }
 
 #endif //TMC2130
 
 void failstats_reset_print()
 {
-	eeprom_update_byte((uint8_t *)EEPROM_CRASH_COUNT_X, 0);
-	eeprom_update_byte((uint8_t *)EEPROM_CRASH_COUNT_Y, 0);
-	eeprom_update_byte((uint8_t *)EEPROM_FERROR_COUNT, 0);
-	eeprom_update_byte((uint8_t *)EEPROM_POWER_COUNT, 0);
-	eeprom_update_byte((uint8_t *)EEPROM_MMU_FAIL, 0);
-	eeprom_update_byte((uint8_t *)EEPROM_MMU_LOAD_FAIL, 0);
+	eeprom_update_byte_notify((uint8_t *)EEPROM_CRASH_COUNT_X, 0);
+	eeprom_update_byte_notify((uint8_t *)EEPROM_CRASH_COUNT_Y, 0);
+	eeprom_update_byte_notify((uint8_t *)EEPROM_FERROR_COUNT, 0);
+	eeprom_update_byte_notify((uint8_t *)EEPROM_POWER_COUNT, 0);
+	eeprom_update_byte_notify((uint8_t *)EEPROM_MMU_FAIL, 0);
+	eeprom_update_byte_notify((uint8_t *)EEPROM_MMU_LOAD_FAIL, 0);
 }
 
 void watchdogEarlyDisable(void) {
@@ -706,19 +762,19 @@ void softReset(void) {
 
 
 static void factory_reset_stats(){
-    eeprom_update_dword((uint32_t *)EEPROM_TOTALTIME, 0);
-    eeprom_update_dword((uint32_t *)EEPROM_FILAMENTUSED, 0);
+    eeprom_update_dword_notify((uint32_t *)EEPROM_TOTALTIME, 0);
+    eeprom_update_dword_notify((uint32_t *)EEPROM_FILAMENTUSED, 0);
 
     failstats_reset_print();
 
-    eeprom_update_word((uint16_t *)EEPROM_CRASH_COUNT_X_TOT, 0);
-    eeprom_update_word((uint16_t *)EEPROM_CRASH_COUNT_Y_TOT, 0);
-    eeprom_update_word((uint16_t *)EEPROM_FERROR_COUNT_TOT, 0);
-    eeprom_update_word((uint16_t *)EEPROM_POWER_COUNT_TOT, 0);
+    eeprom_update_word_notify((uint16_t *)EEPROM_CRASH_COUNT_X_TOT, 0);
+    eeprom_update_word_notify((uint16_t *)EEPROM_CRASH_COUNT_Y_TOT, 0);
+    eeprom_update_word_notify((uint16_t *)EEPROM_FERROR_COUNT_TOT, 0);
+    eeprom_update_word_notify((uint16_t *)EEPROM_POWER_COUNT_TOT, 0);
 
-    eeprom_update_word((uint16_t *)EEPROM_MMU_FAIL_TOT, 0);
-    eeprom_update_word((uint16_t *)EEPROM_MMU_LOAD_FAIL_TOT, 0);
-    eeprom_update_dword((uint32_t *)EEPROM_MMU_MATERIAL_CHANGES, 0);
+    eeprom_update_word_notify((uint16_t *)EEPROM_MMU_FAIL_TOT, 0);
+    eeprom_update_word_notify((uint16_t *)EEPROM_MMU_LOAD_FAIL_TOT, 0);
+    eeprom_update_dword_notify((uint32_t *)EEPROM_MMU_MATERIAL_CHANGES, 0);
 }
 
 // Factory reset function
@@ -749,7 +805,7 @@ static void factory_reset(char level)
 
 		// Force the wizard in "Follow calibration flow" mode at the next boot up
 		calibration_status_clear(CALIBRATION_FORCE_PREP);
-		eeprom_write_byte((uint8_t*)EEPROM_WIZARD_ACTIVE, 2);
+		eeprom_write_byte_notify((uint8_t*)EEPROM_WIZARD_ACTIVE, 2);
 		farm_disable();
 
 #ifdef FILAMENT_SENSOR
@@ -766,7 +822,7 @@ static void factory_reset(char level)
 		menu_progressbar_init(EEPROM_TOP, PSTR("ERASING all data"));
 		// Erase EEPROM
 		for (uint16_t i = 0; i < EEPROM_TOP; i++) {
-			eeprom_update_byte((uint8_t*)i, 0xFF);
+			eeprom_update_byte_notify((uint8_t*)i, 0xFF);
 			menu_progressbar_update(i);
 		}
 		menu_progressbar_finish();
@@ -777,9 +833,8 @@ static void factory_reset(char level)
 	}
 }
 
-extern "C" {
-FILE _uartout; //= {0}; Global variable is always zero initialized. No need to explicitly state this.
-}
+static FILE _uartout;
+#define uartout (&_uartout)
 
 int uart_putchar(char c, FILE *)
 {
@@ -862,7 +917,7 @@ void show_fw_version_warnings() {
 //! @brief try to check if firmware is on right type of printer
 static void check_if_fw_is_on_right_printer() {
     if (fsensor.probeOtherType()) {
-        lcd_show_fullscreen_message_and_wait_P(_i(PRINTER_NAME " firmware detected on " PRINTER_NAME_ALTERNATE " printer"));////c=20 r=4
+        lcd_show_fullscreen_message_and_wait_P(_T(MSG_FW_MK3_DETECTED));
     }
 }
 #endif //defined(FILAMENT_SENSOR) && defined(FSENSOR_PROBING)
@@ -921,11 +976,11 @@ void update_sec_lang_from_external_flash()
 			else
 			{
 				//TODO - check sec lang data integrity
-				eeprom_update_byte((unsigned char *)EEPROM_LANG, LANG_ID_SEC);
+				eeprom_update_byte_notify((unsigned char *)EEPROM_LANG, LANG_ID_SEC);
 			}
 		}
 	}
-	boot_app_flags &= ~BOOT_APP_FLG_USER0;
+	boot_app_magic = 0;
 }
 
 
@@ -981,7 +1036,7 @@ static void fw_crash_init()
     if(xfdump_check_state(&crash_reason))
     {
         // always signal to the host that a dump is available for retrieval
-        puts_P(_N("// action:dump_available"));
+        puts_P(_N("//action:dump_available"));
 
 #ifdef EMERGENCY_DUMP
         if(crash_reason != dump_crash_reason::manual &&
@@ -1023,7 +1078,7 @@ static void fw_crash_init()
 #endif //XFLASH_DUMP
 
     // prevent crash prompts to reappear once acknowledged
-    eeprom_update_byte((uint8_t*)EEPROM_FW_CRASH_FLAG, 0xFF);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_FW_CRASH_FLAG, 0xFF);
 }
 
 #define KILL_PENDING_FLAG 0x42
@@ -1031,7 +1086,7 @@ static void fw_crash_init()
 static void fw_kill_init() {
     if (eeprom_read_byte((uint8_t*)EEPROM_KILL_PENDING_FLAG) == KILL_PENDING_FLAG) {
         // clear pending message event
-        eeprom_write_byte((uint8_t*)EEPROM_KILL_PENDING_FLAG, EEPROM_EMPTY_VALUE);
+        eeprom_write_byte_notify((uint8_t*)EEPROM_KILL_PENDING_FLAG, EEPROM_EMPTY_VALUE);
 
         // display the kill message
         PGM_P kill_msg = (PGM_P)eeprom_read_word((uint16_t*)EEPROM_KILL_MESSAGE);
@@ -1106,7 +1161,7 @@ void setup()
         {
             if (!get_PRUSA_SN(SN))
             {
-                eeprom_update_block(SN, (uint8_t*)EEPROM_PRUSA_SN, 20);
+                eeprom_update_block_notify(SN, (uint8_t*)EEPROM_PRUSA_SN, 20);
                 puts_P(PSTR("SN updated"));
             }
             else
@@ -1123,12 +1178,13 @@ void setup()
 		SERIAL_PROTOCOLLNPGM("start");
 #endif
 	SERIAL_ECHO_START;
-	puts_P(PSTR(" " FW_VERSION_FULL));
+	puts_P(PSTR(" " FW_VERSION_FULL "_" FW_COMMIT_HASH));
 
 	// by default the MMU shall remain disabled - PFW-1418
 	if (eeprom_init_default_byte((uint8_t *)EEPROM_MMU_ENABLED, 0)) {
 		MMU2::mmu2.Start();
 	}
+	MMU2::mmu2.Status();
 	SpoolJoin::spooljoin.initSpoolJoinStatus();
 
 	//SERIAL_ECHOPAIR("Active sheet before:", static_cast<unsigned long int>(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet))));
@@ -1279,14 +1335,11 @@ void setup()
 	if (silentMode == 0xff) silentMode = 0;
 	tmc2130_mode = TMC2130_MODE_NORMAL;
 
-	if (lcd_crash_detect_enabled() && !farm_mode)
-	{
-		lcd_crash_detect_enable();
-	    puts_P(_N("CrashDetect ENABLED!"));
-	}
-	else
-	{
-	    lcd_crash_detect_disable();
+  tmc2130_sg_stop_on_crash = eeprom_init_default_byte((uint8_t*)EEPROM_CRASH_DET, farm_mode ? false : true);
+
+	if (tmc2130_sg_stop_on_crash) {
+    puts_P(_N("CrashDetect ENABLED!"));
+	} else {
 	    puts_P(_N("CrashDetect DISABLED"));
 	}
 
@@ -1373,9 +1426,9 @@ void setup()
 
 	// Force SD card update. Otherwise the SD card update is done from loop() on card.checkautostart(false),
 	// but this times out if a blocking dialog is shown in setup().
-	card.initsd();
+	card.mount();
 #ifdef DEBUG_SD_SPEED_TEST
-	if (card.cardOK)
+	if (card.mounted)
 	{
 		uint8_t* buff = (uint8_t*)block_buffer;
 		uint32_t block = 0;
@@ -1454,15 +1507,16 @@ void setup()
 	eeprom_init_default_byte((uint8_t*)EEPROM_TEMP_CAL_ACTIVE, 0);
 
 	if (eeprom_read_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA) == 255) {
-		//eeprom_write_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 0);
-		eeprom_write_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
+		//eeprom_write_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 0);
+		eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
 		int16_t z_shift = 0;
 		for (uint8_t i = 0; i < 5; i++) {
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
 		}
-		eeprom_write_byte((uint8_t*)EEPROM_TEMP_CAL_ACTIVE, 0);
+		eeprom_update_byte_notify((uint8_t*)EEPROM_TEMP_CAL_ACTIVE, 0);
 	}
-	eeprom_init_default_byte((uint8_t*)EEPROM_UVLO, NO_PENDING_RECOVERY);
+	eeprom_init_default_byte((uint8_t*)EEPROM_UVLO, PowerPanic::NO_PENDING_RECOVERY);
+	eeprom_init_default_byte((uint8_t*)EEPROM_UVLO_Z_LIFTED, 0);
 	eeprom_init_default_byte((uint8_t*)EEPROM_SD_SORT, 0);
 
 	//mbl_mode_init();
@@ -1489,23 +1543,23 @@ void setup()
 	  //if motherboard or printer type was changed inform user as it can indicate flashing wrong firmware version
 	  //if user confirms with knob, new hw version (printer and/or motherboard) is written to eeprom and message will be not shown next time
 	case(0b01):
-		lcd_show_fullscreen_message_and_wait_P(_i("Warning: motherboard type changed.")); ////MSG_CHANGED_MOTHERBOARD c=20 r=4
-		eeprom_write_word((uint16_t*)EEPROM_BOARD_TYPE, MOTHERBOARD);
+		lcd_show_fullscreen_message_and_wait_P(_T(MSG_CHANGED_MOTHERBOARD));
+		eeprom_write_word_notify((uint16_t*)EEPROM_BOARD_TYPE, MOTHERBOARD);
 		break;
 	case(0b10):
-		lcd_show_fullscreen_message_and_wait_P(_i("Warning: printer type changed.")); ////MSG_CHANGED_PRINTER c=20 r=4
-		eeprom_write_word((uint16_t*)EEPROM_PRINTER_TYPE, PRINTER_TYPE);
+		lcd_show_fullscreen_message_and_wait_P(_T(MSG_CHANGED_PRINTER));
+		eeprom_write_word_notify((uint16_t*)EEPROM_PRINTER_TYPE, PRINTER_TYPE);
 		break;
 	case(0b11):
-		lcd_show_fullscreen_message_and_wait_P(_i("Warning: both printer type and motherboard type changed.")); ////MSG_CHANGED_BOTH c=20 r=4
-		eeprom_write_word((uint16_t*)EEPROM_PRINTER_TYPE, PRINTER_TYPE);
-		eeprom_write_word((uint16_t*)EEPROM_BOARD_TYPE, MOTHERBOARD);
+		lcd_show_fullscreen_message_and_wait_P(_T(MSG_CHANGED_BOTH));
+		eeprom_write_word_notify((uint16_t*)EEPROM_PRINTER_TYPE, PRINTER_TYPE);
+		eeprom_write_word_notify((uint16_t*)EEPROM_BOARD_TYPE, MOTHERBOARD);
 		break;
 	default: break; //no change, show no message
   }
 
   if (!previous_settings_retrieved) {
-	  lcd_show_fullscreen_message_and_wait_P(_i("Old settings found. Default PID, Esteps etc. will be set.")); //if EEPROM version or printer type was changed, inform user that default setting were loaded////MSG_DEFAULT_SETTINGS_LOADED c=20 r=6
+	  lcd_show_fullscreen_message_and_wait_P(_T(MSG_DEFAULT_SETTINGS_LOADED)); //if EEPROM version or printer type was changed, inform user that default setting were loaded
 	  Config_StoreSettings();
   }
 
@@ -1520,11 +1574,11 @@ void setup()
           static const uint16_t v3_2_0_4[] PROGMEM = {3, 2, 0, 4};
           if (eeprom_fw_version_older_than_p(v3_2_0_4)) {
               // printer upgraded from FW<3.2.0.4 and requires re-running selftest
-              lcd_show_fullscreen_message_and_wait_P(_i("Selftest will be run to calibrate accurate sensorless rehoming."));////MSG_FORCE_SELFTEST c=20 r=8
+              lcd_show_fullscreen_message_and_wait_P(_T(MSG_FORCE_SELFTEST));
               calibration_status &= ~CALIBRATION_STATUS_SELFTEST;
           }
       }
-      eeprom_update_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_V2, calibration_status);
+      eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_V2, calibration_status);
   }
   if (eeprom_fw_version_older_than_p(FW_VERSION_NR)) {
       if (!calibration_status_get(CALIBRATION_WIZARD_STEPS)) {
@@ -1583,29 +1637,33 @@ void setup()
     fw_crash_init();
 
 #ifdef UVLO_SUPPORT
-  if (eeprom_read_byte((uint8_t*)EEPROM_UVLO) != NO_PENDING_RECOVERY) { //previous print was terminated by UVLO
+  if (printer_recovering()) { //previous print was terminated by UVLO
       manage_heater(); // Update temperatures
+      //Restore printing type
+      saved_printing_type = eeprom_read_byte((uint8_t*)EEPROM_UVLO_PRINT_TYPE);
 #ifdef DEBUG_UVLO_AUTOMATIC_RECOVER
-		printf_P(_N("Power panic detected!\nCurrent bed temp:%d\nSaved bed temp:%d\n"), (int)degBed(), eeprom_read_byte((uint8_t*)EEPROM_UVLO_TARGET_BED));
-#endif
-     if ( degBed() > ( (float)eeprom_read_byte((uint8_t*)EEPROM_UVLO_TARGET_BED) - AUTOMATIC_UVLO_BED_TEMP_OFFSET) ){
-          #ifdef DEBUG_UVLO_AUTOMATIC_RECOVER
+      printf_P(_N("Power panic detected!\nCurrent bed temp:%d\nSaved bed temp:%d\n"), (int)degBed(), eeprom_read_byte((uint8_t*)EEPROM_UVLO_TARGET_BED));
+#endif //DEBUG_UVLO_AUTOMATIC_RECOVER
+      uvlo_auto_recovery_ready = (degBed() > ( (float)eeprom_read_byte((uint8_t*)EEPROM_UVLO_TARGET_BED) - AUTOMATIC_UVLO_BED_TEMP_OFFSET));
+      if (uvlo_auto_recovery_ready){
+#ifdef DEBUG_UVLO_AUTOMATIC_RECOVER
         puts_P(_N("Automatic recovery!"));
-          #endif
-         recover_print(1);
-      }
-      else{
-          #ifdef DEBUG_UVLO_AUTOMATIC_RECOVER
+#endif //DEBUG_UVLO_AUTOMATIC_RECOVER
+        recover_print(1);
+      } else {
+#ifdef DEBUG_UVLO_AUTOMATIC_RECOVER
         puts_P(_N("Normal recovery!"));
-          #endif
-          if ( lcd_show_fullscreen_message_yes_no_and_wait_P(_T(MSG_RECOVER_PRINT), false) == LCD_LEFT_BUTTON_CHOICE) {
-              recover_print(0);
-          } else {
-              eeprom_update_byte((uint8_t*)EEPROM_UVLO, NO_PENDING_RECOVERY);
-              lcd_update_enable(true);
-              lcd_update(2);
-              lcd_setstatuspgm(MSG_WELCOME);
+#endif //DEBUG_UVLO_AUTOMATIC_RECOVER
+        if (saved_printing_type == PowerPanic::PRINT_TYPE_HOST) {
+          recover_print(0);
+        } else {
+          const uint8_t btn = lcd_show_fullscreen_message_yes_no_and_wait_P(_T(MSG_RECOVER_PRINT), false);
+          if ( btn == LCD_LEFT_BUTTON_CHOICE) {
+            recover_print(0);
+          } else { // LCD_MIDDLE_BUTTON_CHOICE
+            cancel_saved_printing();
           }
+        }
       }
   }
 
@@ -1627,7 +1685,7 @@ void setup()
 static inline void crash_and_burn(dump_crash_reason reason)
 {
     WRITE(BEEPER, HIGH);
-    eeprom_update_byte((uint8_t*)EEPROM_FW_CRASH_FLAG, (uint8_t)reason);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_FW_CRASH_FLAG, (uint8_t)reason);
 #ifdef EMERGENCY_DUMP
     xfdump_full_dump_and_reset(reason);
 #elif defined(EMERGENCY_SERIAL_DUMP)
@@ -1732,11 +1790,11 @@ void loop()
         KEEPALIVE_STATE(NOT_BUSY);
     }
 
-	if (isPrintPaused && saved_printing_type == PRINTING_TYPE_USB) { //keep believing that usb is being printed. Prevents accessing dangerous menus while pausing.
+	if (printingIsPaused() && saved_printing_type == PowerPanic::PRINT_TYPE_HOST) { //keep believing that usb is being printed. Prevents accessing dangerous menus while pausing.
 		usb_timer.start();
 	}
-	else if (usb_timer.expired(10000)) { //just need to check if it expired. Nothing else is needed to be done.
-		;
+	else if (usb_timer.expired(USB_TIMER_TIMEOUT)) { //just need to check if it expired. Nothing else is needed to be done.
+        SetPrinterState(PrinterState::HostPrintingFinished); //set printer state to show LCD menu after finished SD print
 	}
 
 #ifdef PRUSA_M28
@@ -1829,7 +1887,7 @@ void loop()
 }
   //check heater every n milliseconds
   manage_heater();
-  manage_inactivity(isPrintPaused);
+  manage_inactivity(printingIsPaused());
   checkHitEndstops();
   lcd_update(0);
 #ifdef TMC2130
@@ -2790,23 +2848,16 @@ static void gcode_G28(bool home_x_axis, bool home_y_axis, bool home_z_axis)
 // G80 - Automatic mesh bed leveling
 static void gcode_G80()
 {
+    constexpr float XY_AXIS_FEEDRATE = (homing_feedrate[X_AXIS] * 3) / 60;
+    constexpr float Z_LIFT_FEEDRATE = homing_feedrate[Z_AXIS] / 60;
+    constexpr float Z_CALIBRATION_THRESHOLD = 0.35f;
+    constexpr float MESH_HOME_Z_SEARCH_FAST = 0.35f;
     st_synchronize();
     if (planner_aborted)
         return;
 
     mesh_bed_leveling_flag = true;
-#ifndef PINDA_THERMISTOR
-    static bool run = false; // thermistor-less PINDA temperature compensation is running
-#endif // ndef PINDA_THERMISTOR
 
-#ifdef SUPPORT_VERBOSITY
-    int8_t verbosity_level = 0;
-    if (code_seen('V')) {
-        // Just 'V' without a number counts as V1.
-        char c = strchr_pointer[1];
-        verbosity_level = (c == ' ' || c == '\t' || c == 0) ? 1 : code_value_short();
-    }
-#endif //SUPPORT_VERBOSITY
     // Firstly check if we know where we are
     if (!(axis_known_position[X_AXIS] && axis_known_position[Y_AXIS] && axis_known_position[Z_AXIS])) {
         // We don't know where we are! HOME!
@@ -2817,30 +2868,8 @@ static void gcode_G80()
         return;
     }
 
-    uint8_t nMeasPoints = MESH_MEAS_NUM_X_POINTS;
-    if (code_seen('N')) {
-        nMeasPoints = code_value_uint8();
-        if (nMeasPoints != 7) {
-            nMeasPoints = 3;
-        }
-    }
-    else {
-        nMeasPoints = eeprom_read_byte((uint8_t*)EEPROM_MBL_POINTS_NR);
-    }
-
-    uint8_t nProbeRetry = 3;
-    if (code_seen('R')) {
-        nProbeRetry = code_value_uint8();
-        if (nProbeRetry > 10) {
-            nProbeRetry = 10;
-        }
-    }
-    else {
-        nProbeRetry = eeprom_read_byte((uint8_t*)EEPROM_MBL_PROBE_NR);
-    }
-    bool magnet_elimination = (eeprom_read_byte((uint8_t*)EEPROM_MBL_MAGNET_ELIMINATION) > 0);
-
 #ifndef PINDA_THERMISTOR
+    static bool run = false; // thermistor-less PINDA temperature compensation is running
     if (run == false && eeprom_read_byte((uint8_t *)EEPROM_TEMP_CAL_ACTIVE) && calibration_status_pinda() == true && target_temperature_bed >= 50)
     {
         temp_compensation_start();
@@ -2851,113 +2880,110 @@ static void gcode_G80()
     }
     run = false;
 #endif //PINDA_THERMISTOR
-    // Save custom message state, set a new custom message state to display: Calibrating point 9.
-    CustomMsg custom_message_type_old = custom_message_type;
-    uint8_t custom_message_state_old = custom_message_state;
-    custom_message_type = CustomMsg::MeshBedLeveling;
-    custom_message_state = (nMeasPoints * nMeasPoints) + 10;
-    lcd_update(1);
+
+    uint8_t nMeasPoints = eeprom_read_byte((uint8_t*)EEPROM_MBL_POINTS_NR);
+    if (uint8_t codeSeen = code_seen('N'), value = code_value_uint8(); codeSeen && (value == 7 || value == 3))
+      nMeasPoints = value;
+
+    uint8_t nProbeRetryCount = eeprom_read_byte((uint8_t*)EEPROM_MBL_PROBE_NR);
+    if (uint8_t codeSeen = code_seen('C'), value = code_value_uint8(); codeSeen && value >= 1 && value <= 10)
+      nProbeRetryCount = value;
+
+    const float area_min_x = code_seen('X') ? code_value() - x_mesh_density - X_PROBE_OFFSET_FROM_EXTRUDER : -INFINITY;
+    const float area_min_y = code_seen('Y') ? code_value() - y_mesh_density - Y_PROBE_OFFSET_FROM_EXTRUDER : -INFINITY;
+    const float area_max_x = code_seen('W') ? area_min_x + code_value() + 2 * x_mesh_density : INFINITY;
+    const float area_max_y = code_seen('H') ? area_min_y + code_value() + 2 * y_mesh_density : INFINITY;
 
     mbl.reset(); //reset mesh bed leveling
+    mbl.z_values[0][0] = min_pos[Z_AXIS];
 
     // Reset baby stepping to zero, if the babystepping has already been loaded before.
     babystep_undo();
 
-    // Cycle through all points and probe them
-    // First move up. During this first movement, the babystepping will be reverted.
-    current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
-    plan_buffer_line_curposXYZE(homing_feedrate[Z_AXIS] / 60);
-    // The move to the first calibration point.
-    current_position[X_AXIS] = BED_X0;
-    current_position[Y_AXIS] = BED_Y0;
-
-#ifdef SUPPORT_VERBOSITY
-    if (verbosity_level >= 1)
-    {
-        bool clamped = world2machine_clamp(current_position[X_AXIS], current_position[Y_AXIS]);
-        clamped ? SERIAL_PROTOCOLPGM("First calibration point clamped.\n") : SERIAL_PROTOCOLPGM("No clamping for first calibration point.\n");
-    }
-#else //SUPPORT_VERBOSITY
-    world2machine_clamp(current_position[X_AXIS], current_position[Y_AXIS]);
-#endif //SUPPORT_VERBOSITY
-
-    int XY_AXIS_FEEDRATE = homing_feedrate[X_AXIS] / 20;
-    plan_buffer_line_curposXYZE(XY_AXIS_FEEDRATE);
-    // Wait until the move is finished.
-    st_synchronize();
-    if (planner_aborted)
-    {
-        custom_message_type = custom_message_type_old;
-        custom_message_state = custom_message_state_old;
-        return;
-    }
-
-    uint8_t mesh_point = 0; //index number of calibration point
-    int Z_LIFT_FEEDRATE = homing_feedrate[Z_AXIS] / 40;
+    // Initialize the default mesh from eeprom and calculate how many points are to be probed
     bool has_z = is_bed_z_jitter_data_valid(); //checks if we have data from Z calibration (offsets of the Z heiths of the 8 calibration points from the first point)
-#ifdef SUPPORT_VERBOSITY
-    if (verbosity_level >= 1) {
-        has_z ? SERIAL_PROTOCOLPGM("Z jitter data from Z cal. valid.\n") : SERIAL_PROTOCOLPGM("Z jitter data from Z cal. not valid.\n");
-    }
-#endif // SUPPORT_VERBOSITY
-    int l_feedmultiply = setup_for_endstop_move(false); //save feedrate and feedmultiply, sets feedmultiply to 100
-    while (mesh_point != nMeasPoints * nMeasPoints) {
-        // Get coords of a measuring point.
-        uint8_t ix = mesh_point % nMeasPoints; // from 0 to MESH_NUM_X_POINTS - 1
-        uint8_t iy = mesh_point / nMeasPoints;
-        /*if (!mbl_point_measurement_valid(ix, iy, nMeasPoints, true)) {
-          printf_P(PSTR("Skipping point [%d;%d] \n"), ix, iy);
-          custom_message_state--;
-          mesh_point++;
-          continue; //skip
-          }*/
-        if (iy & 1) ix = (nMeasPoints - 1) - ix; // Zig zag
-        if (nMeasPoints == 7) //if we have 7x7 mesh, compare with Z-calibration for points which are in 3x3 mesh
-        {
-            has_z = ((ix % 3 == 0) && (iy % 3 == 0)) && is_bed_z_jitter_data_valid();
+    uint8_t meshPointsToProbe = 0;
+    for (uint8_t row = 0; row < MESH_NUM_Y_POINTS; row++) {
+        for (uint8_t col = 0; col < MESH_NUM_X_POINTS; col++) {
+            bool isOn3x3Mesh = ((row % 3 == 0) && (col % 3 == 0));
+            if (isOn3x3Mesh) {
+                if (has_z && (row || col)) {
+                    // Reconstruct the mesh saved in eeprom
+                    uint16_t z_offset_u = eeprom_read_word((uint16_t*)(EEPROM_BED_CALIBRATION_Z_JITTER + 2 * ((col/3) + row - 1)));
+                    const float z0 = mbl.z_values[0][0] + *reinterpret_cast<int16_t*>(&z_offset_u) * 0.01;
+                    mbl.set_z(col, row, z0);
+                }
+            } else {
+                mbl.set_z(col, row, NAN);
+            }
+
+            // check for points that are skipped
+            if (nMeasPoints == 3) {
+                if (!isOn3x3Mesh)
+                    continue;
+            } else {
+                const float x_pos = BED_X(col);
+                const float y_pos = BED_Y(row);
+                if ((x_pos < area_min_x || x_pos > area_max_x || y_pos < area_min_y || y_pos > area_max_y) && (!isOn3x3Mesh || has_z)) {
+                    continue;
+                }
+            }
+
+            // increment the total point counter if the points are not skipped
+            meshPointsToProbe++;
         }
-        float z0 = 0.f;
-        if (has_z && (mesh_point > 0)) {
-            uint16_t z_offset_u = 0;
-            if (nMeasPoints == 7) {
-                z_offset_u = eeprom_read_word((uint16_t*)(EEPROM_BED_CALIBRATION_Z_JITTER + 2 * ((ix/3) + iy - 1)));
+    }
+    mbl.upsample_3x3(); //upsample the default mesh
+
+    // Save custom message state, set a new custom message state to display: Calibrating point 9.
+    CustomMsg custom_message_type_old = custom_message_type;
+    uint8_t custom_message_state_old = custom_message_state;
+    custom_message_type = CustomMsg::MeshBedLeveling;
+    custom_message_state = meshPointsToProbe + 10;
+    lcd_update(1);
+
+    // Lift Z to a safe position before probing the first point
+    current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
+    plan_buffer_line_curposXYZE(Z_LIFT_FEEDRATE);
+
+    // Cycle through all points and probe them
+    int l_feedmultiply = setup_for_endstop_move(false); //save feedrate and feedmultiply, sets feedmultiply to 100
+    uint8_t mesh_point = 0; //index number of calibration point
+    while (mesh_point != MESH_NUM_X_POINTS * MESH_NUM_Y_POINTS) {
+        // Get coords of a measuring point.
+        uint8_t ix = mesh_point % MESH_NUM_X_POINTS; // from 0 to MESH_NUM_X_POINTS - 1
+        uint8_t iy = mesh_point / MESH_NUM_X_POINTS;
+        if (iy & 1) ix = (MESH_NUM_X_POINTS - 1) - ix; // Zig zag
+        bool isOn3x3Mesh = ((ix % 3 == 0) && (iy % 3 == 0));
+        float x_pos = BED_X(ix);
+        float y_pos = BED_Y(iy);
+
+        if (nMeasPoints == 3) {
+            if (!isOn3x3Mesh) {
+                mesh_point++;
+                mbl.set_z(ix, iy, NAN);
+                continue; //skip
             }
-            else {
-                z_offset_u = eeprom_read_word((uint16_t*)(EEPROM_BED_CALIBRATION_Z_JITTER + 2 * (ix + iy * 3 - 1)));
-            }
-            z0 = mbl.z_values[0][0] + *reinterpret_cast<int16_t*>(&z_offset_u) * 0.01;
-#ifdef SUPPORT_VERBOSITY
-            if (verbosity_level >= 1) {
-                printf_P(PSTR("Bed leveling, point: %d, calibration Z stored in eeprom: %d, calibration z: %f \n"), mesh_point, z_offset_u, z0);
-            }
-#endif // SUPPORT_VERBOSITY
+        } else if ((x_pos < area_min_x || x_pos > area_max_x || y_pos < area_min_y || y_pos > area_max_y) && (!isOn3x3Mesh || has_z)) {
+            mesh_point++;
+            continue; //skip
         }
 
-        // Move Z up to MESH_HOME_Z_SEARCH.
-        if((ix == 0) && (iy == 0)) current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
-        else current_position[Z_AXIS] += 2.f / nMeasPoints; //use relative movement from Z coordinate where PINDa triggered on previous point. This makes calibration faster.
-        float init_z_bckp = current_position[Z_AXIS];
-        plan_buffer_line_curposXYZE(Z_LIFT_FEEDRATE);
-        st_synchronize();
+        // Move Z up to the probe height of the current Z point.
+        const float z0 = mbl.z_values[iy][ix];
+        const float init_z_bckp = !has_z ? MESH_HOME_Z_SEARCH : z0 + MESH_HOME_Z_SEARCH_FAST;
+        if (init_z_bckp > current_position[Z_AXIS]) {
+            current_position[Z_AXIS] = init_z_bckp;
+            plan_buffer_line_curposXYZE(Z_LIFT_FEEDRATE);
+            st_synchronize();
+        }
 
         // Move to XY position of the sensor point.
-        current_position[X_AXIS] = BED_X(ix, nMeasPoints);
-        current_position[Y_AXIS] = BED_Y(iy, nMeasPoints);
+        current_position[X_AXIS] = x_pos;
+        current_position[Y_AXIS] = y_pos;
 
-        //printf_P(PSTR("[%f;%f]\n"), current_position[X_AXIS], current_position[Y_AXIS]);
-
-
-#ifdef SUPPORT_VERBOSITY
-        if (verbosity_level >= 1) {
-            bool clamped = world2machine_clamp(current_position[X_AXIS], current_position[Y_AXIS]);
-            SERIAL_PROTOCOL(mesh_point);
-            clamped ? SERIAL_PROTOCOLPGM(": xy clamped.\n") : SERIAL_PROTOCOLPGM(": no xy clamping\n");
-        }
-#else //SUPPORT_VERBOSITY
         world2machine_clamp(current_position[X_AXIS], current_position[Y_AXIS]);
-#endif // SUPPORT_VERBOSITY
 
-        //printf_P(PSTR("after clamping: [%f;%f]\n"), current_position[X_AXIS], current_position[Y_AXIS]);
         plan_buffer_line_curposXYZE(XY_AXIS_FEEDRATE);
         st_synchronize();
         if (planner_aborted)
@@ -2968,76 +2994,52 @@ static void gcode_G80()
         }
 
         // Go down until endstop is hit
-        const float Z_CALIBRATION_THRESHOLD = 1.f;
-        if (!find_bed_induction_sensor_point_z((has_z && mesh_point > 0) ? z0 - Z_CALIBRATION_THRESHOLD : -10.f, nProbeRetry)) { //if we have data from z calibration max allowed difference is 1mm for each point, if we dont have data max difference is 10mm from initial point
+        if (!find_bed_induction_sensor_point_z(has_z ? z0 - Z_CALIBRATION_THRESHOLD : -10.f, nProbeRetryCount)) { //if we have data from z calibration max allowed difference is 1mm for each point, if we dont have data max difference is 10mm from initial point
             printf_P(_T(MSG_BED_LEVELING_FAILED_POINT_LOW));
             break;
         }
-        if (init_z_bckp - current_position[Z_AXIS] < 0.1f) { //broken cable or initial Z coordinate too low. Go to MESH_HOME_Z_SEARCH and repeat last step (z-probe) again to distinguish between these two cases.
-            //printf_P(PSTR("Another attempt! Current Z position: %f\n"), current_position[Z_AXIS]);
+        if (init_z_bckp - current_position[Z_AXIS] < 0.f) { //broken cable or initial Z coordinate too low. Go to MESH_HOME_Z_SEARCH and repeat last step (z-probe) again to distinguish between these two cases.
             current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
             plan_buffer_line_curposXYZE(Z_LIFT_FEEDRATE);
             st_synchronize();
 
-            if (!find_bed_induction_sensor_point_z((has_z && mesh_point > 0) ? z0 - Z_CALIBRATION_THRESHOLD : -10.f, nProbeRetry)) { //if we have data from z calibration max allowed difference is 1mm for each point, if we dont have data max difference is 10mm from initial point
+            if (!find_bed_induction_sensor_point_z(has_z ? z0 - Z_CALIBRATION_THRESHOLD : -10.f, nProbeRetryCount)) { //if we have data from z calibration max allowed difference is 1mm for each point, if we dont have data max difference is 10mm from initial point
                 printf_P(_T(MSG_BED_LEVELING_FAILED_POINT_LOW));
                 break;
             }
             if (MESH_HOME_Z_SEARCH - current_position[Z_AXIS] < 0.1f) {
-                puts_P(PSTR("Bed leveling failed. Sensor disconnected or cable broken."));
+                puts_P(PSTR("Bed leveling failed. Sensor triggered too soon"));
                 break;
             }
         }
         if (has_z && fabs(z0 - current_position[Z_AXIS]) > Z_CALIBRATION_THRESHOLD) { //if we have data from z calibration, max. allowed difference is 1mm for each point
-            puts_P(PSTR("Bed leveling failed. Sensor triggered too high."));
+            puts_P(PSTR("Bed leveling failed. Too much variation from eeprom mesh"));
             break;
         }
-#ifdef SUPPORT_VERBOSITY
-        if (verbosity_level >= 10) {
-            SERIAL_ECHOPGM("X: ");
-            MYSERIAL.print(current_position[X_AXIS], 5);
-            SERIAL_ECHOLNPGM("");
-            SERIAL_ECHOPGM("Y: ");
-            MYSERIAL.print(current_position[Y_AXIS], 5);
-            SERIAL_PROTOCOLPGM("\n");
-        }
-#endif // SUPPORT_VERBOSITY
-        float offset_z = 0;
 
 #ifdef PINDA_THERMISTOR
-        offset_z = temp_compensation_pinda_thermistor_offset(current_temperature_pinda);
-#endif //PINDA_THERMISTOR
-        //			#ifdef SUPPORT_VERBOSITY
-        /*			if (verbosity_level >= 1)
-                    {
-                    SERIAL_ECHOPGM("mesh bed leveling: ");
-                    MYSERIAL.print(current_position[Z_AXIS], 5);
-                    SERIAL_ECHOPGM(" offset: ");
-                    MYSERIAL.print(offset_z, 5);
-                    SERIAL_ECHOLNPGM("");
-                    }*/
-        //			#endif // SUPPORT_VERBOSITY
+        float offset_z = temp_compensation_pinda_thermistor_offset(current_temperature_pinda);
         mbl.set_z(ix, iy, current_position[Z_AXIS] - offset_z); //store measured z values z_values[iy][ix] = z - offset_z;
+#else
+        mbl.set_z(ix, iy, current_position[Z_AXIS]); //store measured z values z_values[iy][ix] = z;
+#endif //PINDA_THERMISTOR
 
         custom_message_state--;
         mesh_point++;
         lcd_update(1);
     }
     current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
-#ifdef SUPPORT_VERBOSITY
-    if (verbosity_level >= 20) {
-        SERIAL_ECHOLNPGM("Mesh bed leveling while loop finished.");
-        SERIAL_ECHOLNPGM("MESH_HOME_Z_SEARCH: ");
-        MYSERIAL.print(current_position[Z_AXIS], 5);
-    }
-#endif // SUPPORT_VERBOSITY
     plan_buffer_line_curposXYZE(Z_LIFT_FEEDRATE);
     st_synchronize();
-    if (mesh_point != nMeasPoints * nMeasPoints) {
+    static uint8_t g80_fail_cnt = 0;
+    if (mesh_point != MESH_NUM_X_POINTS * MESH_NUM_Y_POINTS) {
+        if (g80_fail_cnt++ >= 2) {
+            kill(_T(MSG_MBL_FAILED_Z_CAL));
+        }
         Sound_MakeSound(e_SOUND_TYPE_StandardAlert);
         bool bState;
         do   {                             // repeat until Z-leveling o.k.
-            lcd_display_message_fullscreen_P(_i("Some problem encountered, Z-leveling enforced ...")); ////MSG_ZLEVELING_ENFORCED c=20 r=4
+            lcd_display_message_fullscreen_P(_T(MSG_ZLEVELING_ENFORCED));
 #ifdef TMC2130
             lcd_wait_for_click_delay(MSG_BED_LEVELING_FAILED_TIMEOUT);
             calibrate_z_auto();           // Z-leveling (X-assembly stay up!!!)
@@ -3053,14 +3055,13 @@ static void gcode_G80()
             tmc2130_home_enter(Z_AXIS_MASK);
 #endif // TMC2130
             current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
-            plan_buffer_line_curposXYZE(homing_feedrate[Z_AXIS] / 40);
+            plan_buffer_line_curposXYZE(Z_LIFT_FEEDRATE);
             st_synchronize();
 #ifdef TMC2130
             tmc2130_home_exit();
 #endif // TMC2130
             enable_z_endstop(bState);
         } while (st_get_position_mm(Z_AXIS) > MESH_HOME_Z_SEARCH); // i.e. Z-leveling not o.k.
-        //               plan_set_z_position(MESH_HOME_Z_SEARCH); // is not necessary ('do-while' loop always ends at the expected Z-position)
 
         custom_message_type = custom_message_type_old;
         custom_message_state = custom_message_state_old;
@@ -3069,101 +3070,64 @@ static void gcode_G80()
         repeatcommand_front();             // re-run (i.e. of "G80")
         return;
     }
+    g80_fail_cnt = 0; // no fail was detected. Reset the error counter.
+
     clean_up_after_endstop_move(l_feedmultiply);
-    //		SERIAL_ECHOLNPGM("clean up finished ");
 
 #ifndef PINDA_THERMISTOR
     if(eeprom_read_byte((uint8_t *)EEPROM_TEMP_CAL_ACTIVE) && calibration_status_pinda() == true) temp_compensation_apply(); //apply PINDA temperature compensation
 #endif
     babystep_apply(); // Apply Z height correction aka baby stepping before mesh bed leveing gets activated.
-    //		SERIAL_ECHOLNPGM("babystep applied");
+
+    // Apply the bed level correction to the mesh
     bool eeprom_bed_correction_valid = eeprom_read_byte((unsigned char*)EEPROM_BED_CORRECTION_VALID) == 1;
-#ifdef SUPPORT_VERBOSITY
-    if (verbosity_level >= 1) {
-        eeprom_bed_correction_valid ? SERIAL_PROTOCOLPGM("Bed correction data valid\n") : SERIAL_PROTOCOLPGM("Bed correction data not valid\n");
-    }
-#endif // SUPPORT_VERBOSITY
-    const constexpr uint8_t sides = 4;
-    int8_t correction[sides] = {0};
-    for (uint8_t i = 0; i < sides; ++i) {
-        static const char codes[sides] PROGMEM = { 'L', 'R', 'F', 'B' };
-        static uint8_t *const eep_addresses[sides] PROGMEM = {
-          (uint8_t*)EEPROM_BED_CORRECTION_LEFT,
-          (uint8_t*)EEPROM_BED_CORRECTION_RIGHT,
-          (uint8_t*)EEPROM_BED_CORRECTION_FRONT,
-          (uint8_t*)EEPROM_BED_CORRECTION_REAR,
-        };
-        if (code_seen(pgm_read_byte(&codes[i])))
-        { // Verify value is within allowed range
-            int32_t temp = code_value_long();
-            if (labs(temp) > BED_ADJUSTMENT_UM_MAX) {
-                SERIAL_ERROR_START;
-                SERIAL_ECHOPGM("Excessive bed leveling correction: ");
-                SERIAL_ECHO(temp);
-                SERIAL_ECHOLNPGM(" microns");
-                correction[i] = 0;
+    auto bedCorrectHelper = [eeprom_bed_correction_valid] (char code, uint8_t *eep_address) -> int8_t {
+        if (code_seen(code)) {
+            // Verify value is within allowed range
+            int16_t temp = code_value_short();
+            if (abs(temp) > BED_ADJUSTMENT_UM_MAX) {
+                printf_P(PSTR("%SExcessive bed leveling correction: %i microns\n"), errormagic, temp);
             } else {
-              // Value is valid, save it
-              correction[i] = (int8_t)temp;
+                return (int8_t)temp; // Value is valid, use it
             }
-        } else if (eeprom_bed_correction_valid)
-            correction[i] = (int8_t)eeprom_read_byte((uint8_t*)pgm_read_ptr(&eep_addresses[i]));
-        if (correction[i] == 0)
-            continue;
-    }
-    for (uint8_t row = 0; row < nMeasPoints; ++row) {
-        for (uint8_t col = 0; col < nMeasPoints; ++col) {
-            mbl.z_values[row][col] +=0.001f * (
-              + correction[0] * (nMeasPoints - 1 - col)
+        } else if (eeprom_bed_correction_valid) {
+            return (int8_t)eeprom_read_byte(eep_address);
+        }
+        return 0;
+    };
+    const int8_t correction[4] = {
+        bedCorrectHelper('L', (uint8_t*)EEPROM_BED_CORRECTION_LEFT),
+        bedCorrectHelper('R', (uint8_t*)EEPROM_BED_CORRECTION_RIGHT),
+        bedCorrectHelper('F', (uint8_t*)EEPROM_BED_CORRECTION_FRONT),
+        bedCorrectHelper('B', (uint8_t*)EEPROM_BED_CORRECTION_REAR),
+    };
+    for (uint8_t row = 0; row < MESH_NUM_Y_POINTS; row++) {
+        for (uint8_t col = 0; col < MESH_NUM_X_POINTS; col++) {
+            constexpr float scaler = 0.001f / (MESH_NUM_X_POINTS - 1);
+            mbl.z_values[row][col] += scaler * (
+              + correction[0] * (MESH_NUM_X_POINTS - 1 - col)
               + correction[1] * col
-              + correction[2] * (nMeasPoints - 1 - row)
-              + correction[3] * row) / (float)(nMeasPoints - 1);
+              + correction[2] * (MESH_NUM_Y_POINTS - 1 - row)
+              + correction[3] * row);
         }
     }
-    //		SERIAL_ECHOLNPGM("Bed leveling correction finished");
-    if (nMeasPoints == 3) {
-        mbl.upsample_3x3(); //interpolation from 3x3 to 7x7 points using largrangian polynomials while using the same array z_values[iy][ix] for storing (just coppying measured data to new destination and interpolating between them)
+
+    mbl.upsample_3x3(); //interpolation from 3x3 to 7x7 points using largrangian polynomials while using the same array z_values[iy][ix] for storing (just coppying measured data to new destination and interpolating between them)
+
+    uint8_t useMagnetCompensation = code_seen('M') ? code_value_uint8() : eeprom_read_byte((uint8_t*)EEPROM_MBL_MAGNET_ELIMINATION);
+    if (nMeasPoints == 7 && useMagnetCompensation) {
+        mbl_magnet_elimination();
     }
-    /*
-      SERIAL_PROTOCOLPGM("Num X,Y: ");
-      SERIAL_PROTOCOL(MESH_NUM_X_POINTS);
-      SERIAL_PROTOCOLPGM(",");
-      SERIAL_PROTOCOL(MESH_NUM_Y_POINTS);
-      SERIAL_PROTOCOLPGM("\nZ search height: ");
-      SERIAL_PROTOCOL(MESH_HOME_Z_SEARCH);
-      SERIAL_PROTOCOLLNPGM("\nMeasured points:");
-      for (int y = MESH_NUM_Y_POINTS-1; y >= 0; y--) {
-      for (int x = 0; x < MESH_NUM_X_POINTS; x++) {
-      SERIAL_PROTOCOLPGM("  ");
-      SERIAL_PROTOCOL_F(mbl.z_values[y][x], 5);
-      }
-      SERIAL_PROTOCOLPGM("\n");
-      }
-    */
-    if (nMeasPoints == 7 && magnet_elimination) {
-        mbl_interpolation(nMeasPoints);
-    }
-    /*
-      SERIAL_PROTOCOLPGM("Num X,Y: ");
-      SERIAL_PROTOCOL(MESH_NUM_X_POINTS);
-      SERIAL_PROTOCOLPGM(",");
-      SERIAL_PROTOCOL(MESH_NUM_Y_POINTS);
-      SERIAL_PROTOCOLPGM("\nZ search height: ");
-      SERIAL_PROTOCOL(MESH_HOME_Z_SEARCH);
-      SERIAL_PROTOCOLLNPGM("\nMeasured points:");
-      for (int y = MESH_NUM_Y_POINTS-1; y >= 0; y--) {
-      for (int x = 0; x < MESH_NUM_X_POINTS; x++) {
-      SERIAL_PROTOCOLPGM("  ");
-      SERIAL_PROTOCOL_F(mbl.z_values[y][x], 5);
-      }
-      SERIAL_PROTOCOLPGM("\n");
-      }
-    */
-    //		SERIAL_ECHOLNPGM("Upsample finished");
+
     mbl.active = 1; //activate mesh bed leveling
-    //		SERIAL_ECHOLNPGM("Mesh bed leveling activated");
-    go_home_with_z_lift();
-    //		SERIAL_ECHOLNPGM("Go home finished");
+
+    if (code_seen('O') && !code_value_uint8()) {
+        // Don't let the manage_inactivity() function remove power from the motors.
+        refresh_cmd_timeout();
+    } else {
+        go_home_with_z_lift();
+    }
+
 #ifndef PINDA_THERMISTOR
     //unretract (after PINDA preheat retraction)
     if (temp_compensation_retracted) {
@@ -3183,6 +3147,16 @@ static void gcode_G80()
     mesh_bed_leveling_flag = false;
 }
 
+// G81_M420 Mesh bed leveling status
+
+static void gcode_G81_M420()
+{
+    if (mbl.active) {
+        mbl.print();
+        } else SERIAL_PROTOCOLLNPGM("Mesh bed leveling not active.");
+    return;
+}
+
 //! @brief Calibrate XYZ
 //! @param onlyZ if true, calibrate only Z axis
 //! @param verbosity_level
@@ -3200,8 +3174,7 @@ bool gcode_M45(bool onlyZ, int8_t verbosity_level)
     // Only Z calibration?
 	if (!onlyZ)
 	{
-		setTargetBed(0);
-		setTargetHotend(0);
+		disable_heater();
 		eeprom_adjust_bed_reset(); //reset bed level correction
 	}
 
@@ -3314,7 +3287,7 @@ bool gcode_M45(bool onlyZ, int8_t verbosity_level)
 			{
 				// Reset the baby step value and the baby step applied flag.
 				calibration_status_clear(CALIBRATION_STATUS_LIVE_ADJUST);
-				eeprom_update_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),0);
+				eeprom_update_word_notify(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),0);
 
 				// Complete XYZ calibration.
 				uint8_t point_too_far_mask = 0;
@@ -3422,10 +3395,10 @@ static void mmu_M600_filament_change_screen(uint8_t eject_slot) {
         manage_heater();
         manage_inactivity(true);
 
-        btn = MMU2::mmu2.getPrinterButtonOperation();
+        btn = MMU2::mmu2.GetPrinterButtonOperation();
         if (btn != MMU2::Buttons::NoButton)
         {
-            MMU2::mmu2.clearPrinterButtonOperation();
+            MMU2::mmu2.ClearPrinterButtonOperation();
 
             if (btn == MMU2::Buttons::Eject) {
                 if (eject_slot != (uint8_t)MMU2::FILAMENT_UNKNOWN) {
@@ -3470,7 +3443,7 @@ static void mmu_M600_unload_filament() {
 
 /// @brief load filament for mmu v2
 /// @par nozzle_temp nozzle temperature to load filament
-static void mmu_M600_load_filament(bool automatic, float nozzle_temp) {
+static void mmu_M600_load_filament(bool automatic) {
     uint8_t slot;
     if (automatic) {
         slot = SpoolJoin::spooljoin.nextSlot();
@@ -3479,7 +3452,7 @@ static void mmu_M600_load_filament(bool automatic, float nozzle_temp) {
         slot = choose_menu_P(_T(MSG_SELECT_FILAMENT), _T(MSG_FILAMENT));
     }
 
-    setTargetHotend(nozzle_temp);
+    setTargetHotend(saved_extruder_temperature);
 
     MMU2::mmu2.load_filament_to_nozzle(slot);
 
@@ -3489,7 +3462,6 @@ static void mmu_M600_load_filament(bool automatic, float nozzle_temp) {
 
 static void gcode_M600(const bool automatic, const float x_position, const float y_position, const float z_shift, const float e_shift, const float e_shift_late) {
     st_synchronize();
-    float lastpos[4];
 
     // When using an MMU, save the currently use slot number
     // so the firmware can know which slot to eject after the filament
@@ -3498,20 +3470,20 @@ static void gcode_M600(const bool automatic, const float x_position, const float
 
     prusa_statistics(22);
 
-    //First backup current position and settings
-    int feedmultiplyBckp = feedmultiply;
-    float HotendTempBckp = degTargetHotend(active_extruder);
-    uint8_t fanSpeedBckp = fanSpeed;
-
-    memcpy(lastpos, current_position, sizeof(lastpos));
-
     // Turn off the fan
     fanSpeed = 0;
 
     // Retract E
-    current_position[E_AXIS] += e_shift;
-    plan_buffer_line_curposXYZE(FILAMENTCHANGE_RFEED);
-    st_synchronize();
+    if (!printingIsPaused())
+    {
+      current_position[E_AXIS] += e_shift;
+      plan_buffer_line_curposXYZE(FILAMENTCHANGE_RFEED);
+      st_synchronize();
+    } else {
+        // Print is paused and the extruder may be cold
+        // Filament change can be issued via the Tune menu
+        restore_extruder_temperature_from_ram();
+    }
 
     // Raise the Z axis
     raise_z(z_shift);
@@ -3522,73 +3494,92 @@ static void gcode_M600(const bool automatic, const float x_position, const float
     plan_buffer_line_curposXYZE(FILAMENTCHANGE_XYFEED);
     st_synchronize();
 
-    // Unload filament
-    if (MMU2::mmu2.Enabled()) {
-        eject_slot = MMU2::mmu2.get_current_tool();
-        mmu_M600_unload_filament();
-    } else {
-        // Beep, manage nozzle heater and wait for user to start unload filament
-        M600_wait_for_user(HotendTempBckp);
-        unload_filament(e_shift_late);
-    }
-    st_synchronize();          // finish moves
-    {
+    bool repeat = false;
+    do {
+        // Unload filament
+        if (MMU2::mmu2.Enabled()) {
+            eject_slot = MMU2::mmu2.get_current_tool();
+            mmu_M600_unload_filament();
+        } else {
+            // Beep, manage nozzle heater and wait for user to start unload filament
+            M600_wait_for_user();
+            unload_filament(e_shift_late);
+        }
+        st_synchronize();          // finish moves
+
         FSensorBlockRunout fsBlockRunout;
 
         if (!MMU2::mmu2.Enabled())
         {
             KEEPALIVE_STATE(PAUSED_FOR_USER);
             uint8_t choice =
-                lcd_show_fullscreen_message_yes_no_and_wait_P(_i("Was filament unload successful?"), false, LCD_LEFT_BUTTON_CHOICE); ////MSG_UNLOAD_SUCCESSFUL c=20 r=3
+                lcd_show_fullscreen_message_yes_no_and_wait_P(_T(MSG_UNLOAD_SUCCESSFUL), false, LCD_LEFT_BUTTON_CHOICE);
+            lcd_update_enable(false);
             if (choice == LCD_MIDDLE_BUTTON_CHOICE) {
                 lcd_clear();
                 lcd_puts_at_P(0, 2, _T(MSG_PLEASE_WAIT));
-                current_position[X_AXIS] -= 100;
+                current_position[X_AXIS] = 100;
                 plan_buffer_line_curposXYZE(FILAMENTCHANGE_XYFEED);
                 st_synchronize();
-                lcd_show_fullscreen_message_and_wait_P(_i("Please open idler and remove filament manually.")); ////MSG_CHECK_IDLER c=20 r=4
+                lcd_show_fullscreen_message_and_wait_P(_T(MSG_CHECK_IDLER));
             }
             M600_load_filament();
         }
         else // MMU is enabled
         {
             if (!automatic) mmu_M600_filament_change_screen(eject_slot);
-            mmu_M600_load_filament(automatic, HotendTempBckp);
+            mmu_M600_load_filament(automatic);
         }
         if (!automatic)
-            M600_check_state(HotendTempBckp);
+            repeat = M600_check_state_and_repeat();
+    }
+    while (repeat);
 
-        lcd_update_enable(true);
+    lcd_update_enable(true);
 
-        // Not let's go back to print
-        fanSpeed = fanSpeedBckp;
+    // Not let's go back to print
+    fanSpeed = saved_fan_speed;
 
-        // Feed a little of filament to stabilize pressure
-        if (!automatic) {
+    // Feed a little of filament to stabilize pressure
+    if (!automatic) {
+        if (printingIsPaused())
+        {
+            // Return to retracted state during a pause
+            // @todo is retraction really needed? E-position is reverted a few lines below
+            current_position[E_AXIS] -= default_retraction;
+            plan_buffer_line_curposXYZE(FILAMENTCHANGE_RFEED);
+
+            // Cooldown the extruder again
+            setTargetHotend(0);
+        }
+        else
+        {
+            // Feed a little of filament to stabilize pressure
             current_position[E_AXIS] += FILAMENTCHANGE_RECFEED;
             plan_buffer_line_curposXYZE(FILAMENTCHANGE_EXFEED);
         }
-
-        // Move XY back
-        plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], FILAMENTCHANGE_XYFEED);
-        st_synchronize();
-
-        // Move Z back
-        plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], current_position[E_AXIS], FILAMENTCHANGE_ZFEED);
-        st_synchronize();
-
-        // Set E position to original
-        plan_set_e_position(lastpos[E_AXIS]);
-
-        memcpy(current_position, lastpos, sizeof(lastpos));
-        set_destination_to_current();
-
-        // Recover feed rate
-        feedmultiply = feedmultiplyBckp;
-        enquecommandf_P(MSG_M220, feedmultiplyBckp);
     }
 
-    lcd_setstatuspgm(MSG_WELCOME);
+    // Move XY back
+    plan_buffer_line(saved_pos[X_AXIS], saved_pos[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], FILAMENTCHANGE_XYFEED);
+    st_synchronize();
+
+    // Move Z back
+    plan_buffer_line(saved_pos[X_AXIS], saved_pos[Y_AXIS], saved_pos[Z_AXIS], current_position[E_AXIS], FILAMENTCHANGE_ZFEED);
+    st_synchronize();
+
+    // Set E position to original
+    plan_set_e_position(saved_pos[E_AXIS]);
+
+    memcpy(current_position, saved_pos, sizeof(saved_pos));
+    set_destination_to_current();
+
+    // Recover feed rate
+    feedmultiply = saved_feedmultiply2;
+    enquecommandf_P(MSG_M220, saved_feedmultiply2);
+
+    if (printingIsPaused()) lcd_setstatuspgm(_T(MSG_PRINT_PAUSED));
+    else lcd_setstatuspgm(MSG_WELCOME);
     custom_message_type = CustomMsg::Status;
 }
 
@@ -3616,6 +3607,12 @@ void gcode_M701(float fastLoadLength, uint8_t mmuSlotIndex){
         if (!farm_mode && (eFilamentAction != FilamentAction::None)) {
             lcd_load_filament_color_check();
         }
+
+        #ifdef COMMUNITY_PREVENT_OOZE
+        // Retract filament to prevent oozing
+        retract_for_ooze_prevention();
+        #endif //COMMUNITY_PREVENT_OOZE
+
         lcd_update_enable(true);
         lcd_update(2);
         lcd_setstatuspgm(MSG_WELCOME);
@@ -3880,7 +3877,7 @@ extern uint8_t st_backlash_y;
 //!@n G31 - Dock sled (Z_PROBE_SLED only)
 //!@n G32 - Undock sled (Z_PROBE_SLED only)
 //!@n G80 - Automatic mesh bed leveling
-//!@n G81 - Print bed profile
+//!@n G81 - Mesh bed leveling status
 //!@n G90 - Use Absolute Coordinates
 //!@n G91 - Use Relative Coordinates
 //!@n G92 - Set current position to coordinates given
@@ -3970,6 +3967,7 @@ extern uint8_t st_backlash_y;
 //!@n M404 - N<dia in mm> Enter the nominal filament width (3mm, 1.75mm ) or will display nominal filament width without parameters
 //!@n M405 - Turn on Filament Sensor extrusion control.  Optional D<delay in cm> to set delay in centimeters between sensor and extruder
 //!@n M406 - Turn off Filament Sensor extrusion control
+//!@n M420 - Mesh bed leveling status
 //!@n M500 - stores parameters in EEPROM
 //!@n M501 - reads parameters from EEPROM (if you need reset them after you changed them temporarily).
 //!@n M502 - reverts to the default "factory settings".  You still need to store them in EEPROM afterwards if you want to.
@@ -4175,46 +4173,54 @@ void process_commands()
         if (farm_prusa_code_seen()) {}
         else if(code_seen_P(PSTR("FANPINTST"))) {
             gcode_PRUSA_BadRAMBoFanTest();
-        }
-        else if (code_seen_P(PSTR("FAN"))) { // PRUSA FAN
+        } else if (code_seen_P(PSTR("FAN"))) { // PRUSA FAN
             printf_P(_N("E0:%d RPM\nPRN0:%d RPM\n"), 60*fan_speed[0], 60*fan_speed[1]);
-        }
-        else if (code_seen_P(PSTR("uvlo"))) { // PRUSA uvlo
-            eeprom_update_byte((uint8_t*)EEPROM_UVLO, NO_PENDING_RECOVERY);
-            enquecommand_P(MSG_M24);
-        }
-		else if (code_seen_P(PSTR("MMURES"))) // PRUSA MMURES
-		{
-			MMU2::mmu2.Reset(MMU2::MMU2::Software);
-		}
-		else if (code_seen_P(PSTR("RESET"))) { // PRUSA RESET
+        } else if (code_seen_P(PSTR("uvlo"))) { // PRUSA uvlo
+            if (eeprom_read_byte((uint8_t*)EEPROM_UVLO_PRINT_TYPE) == PowerPanic::PRINT_TYPE_SD) {
+                // M24 - Start SD print
+                enquecommand_P(MSG_M24);
+
+                // Print is recovered, clear the recovery flag
+                eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO, PowerPanic::NO_PENDING_RECOVERY);
+                eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_Z_LIFTED, 0);
+            } else if (eeprom_read_byte((uint8_t*)EEPROM_UVLO_PRINT_TYPE) == PowerPanic::PRINT_TYPE_HOST) {
+                // For Host prints we need to start the timer so that the pause has any effect
+                // this will allow g-codes to be processed while in the paused state
+                // For SD prints, M24 starts the timer
+                print_job_timer.start();
+                usb_timer.start();
+
+                // Park the extruder to the side and don't resume the print
+                // we must assume that the host as not fully booted up at this point
+                lcd_pause_print();
+            }
+        } else if (code_seen_P(PSTR("MMURES"))) { // PRUSA MMURES
+            MMU2::mmu2.Reset(MMU2::MMU2::Software);
+        } else if (code_seen_P(PSTR("RESET"))) { // PRUSA RESET
 #if defined(XFLASH) && defined(BOOTAPP)
-            boot_app_magic = BOOT_APP_MAGIC;
-            boot_app_flags = BOOT_APP_FLG_RUN;
+            boot_app_magic = 0;
 #endif //defined(XFLASH) && defined(BOOTAPP)
             softReset();
-    }
-    else if (code_seen_P(PSTR("SN"))) { // PRUSA SN
-        char SN[20];
-        eeprom_read_block(SN, (uint8_t*)EEPROM_PRUSA_SN, 20);
-        if (SN[19])
-            puts_P(PSTR("SN invalid"));
-        else
-            puts(SN);
-    }
-    else if(code_seen_P(PSTR("Fir"))){ // PRUSA Fir
+        } else if (code_seen_P(PSTR("SN"))) { // PRUSA SN
+            char SN[20];
+            eeprom_read_block(SN, (uint8_t*)EEPROM_PRUSA_SN, 20);
+            if (SN[19])
+                puts_P(PSTR("SN invalid"));
+            else
+                puts(SN);
+        } else if(code_seen_P(PSTR("Fir"))){ // PRUSA Fir
 
-      SERIAL_PROTOCOLLNPGM(FW_VERSION_FULL);
+            SERIAL_PROTOCOLLNPGM(FW_VERSION_FULL);
 
     } else if(code_seen_P(PSTR("Rev"))){ // PRUSA Rev
 
       SERIAL_PROTOCOLLNPGM(FILAMENT_SIZE "-" ELECTRONICS "-" NOZZLE_TYPE );
 
     } else if(code_seen_P(PSTR("Lang"))) { // PRUSA Lang
-	  lang_reset();
+        lang_reset();
 
-	} else if(code_seen_P(PSTR("Lz"))) { // PRUSA Lz
-      eeprom_update_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),0);
+    } else if(code_seen_P(PSTR("Lz"))) { // PRUSA Lz
+      eeprom_update_word_notify(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),0);
 
     } else if(code_seen_P(PSTR("FR"))) { // PRUSA FR
         // Factory full reset
@@ -4231,21 +4237,17 @@ void process_commands()
             }
         }
     } else if (code_seen_P(PSTR("nozzle"))) { // PRUSA nozzle
-          uint16_t nDiameter;
-          if(code_seen('D'))
-               {
-               nDiameter=(uint16_t)(code_value()*1000.0+0.5); // [,um]
-               nozzle_diameter_check(nDiameter);
-               }
-          else if(code_seen_P(PSTR("set")) && farm_mode)
-               {
-               strchr_pointer++;                  // skip 1st char (~ 's')
-               strchr_pointer++;                  // skip 2nd char (~ 'e')
-               nDiameter=(uint16_t)(code_value()*1000.0+0.5); // [,um]
-               eeprom_update_byte((uint8_t*)EEPROM_NOZZLE_DIAMETER,(uint8_t)ClNozzleDiameter::_Diameter_Undef); // for correct synchronization after farm-mode exiting
-               eeprom_update_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM,nDiameter);
-               }
-          else SERIAL_PROTOCOLLN((float)eeprom_read_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM)/1000.0);
+            uint16_t nDiameter;
+            if(code_seen('D')) {
+                nDiameter=(uint16_t)(code_value()*1000.0+0.5); // [,um]
+                nozzle_diameter_check(nDiameter);
+            } else if(code_seen_P(PSTR("set")) && farm_mode) {
+                strchr_pointer++;                  // skip 1st char (~ 's')
+                strchr_pointer++;                  // skip 2nd char (~ 'e')
+                nDiameter=(uint16_t)(code_value()*1000.0+0.5); // [,um]
+                eeprom_update_byte_notify((uint8_t*)EEPROM_NOZZLE_DIAMETER,(uint8_t)ClNozzleDiameter::_Diameter_Undef); // for correct synchronization after farm-mode exiting
+                eeprom_update_word_notify((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM,nDiameter);
+            } else SERIAL_PROTOCOLLN((float)eeprom_read_word((uint16_t*)EEPROM_NOZZLE_DIAMETER_uM)/1000.0);
     }
   }
   else if(*CMDBUFFER_CURRENT_STRING == 'G')
@@ -4725,7 +4727,7 @@ void process_commands()
         if (!calibration_status_get(CALIBRATION_STATUS_XYZ)) {
             //we need to know accurate position of first calibration point
             //if xyz calibration was not performed yet, interrupt temperature calibration and inform user that xyz cal. is needed
-            lcd_show_fullscreen_message_and_wait_P(_i("Please run XYZ calibration first.")); ////MSG_RUN_XYZ c=20 r=4
+            lcd_show_fullscreen_message_and_wait_P(_T(MSG_RUN_XYZ));
             break;
         }
 
@@ -4738,7 +4740,7 @@ void process_commands()
             enquecommand_front_P(G28W);
             break;
         }
-        lcd_show_fullscreen_message_and_wait_P(_i("Stable ambient temperature 21-26C is needed a rigid stand is required."));////MSG_TEMP_CAL_WARNING c=20 r=4
+        lcd_show_fullscreen_message_and_wait_P(_T(MSG_TEMP_CAL_WARNING));
         uint8_t result = lcd_show_fullscreen_message_yes_no_and_wait_P(_T(MSG_STEEL_SHEET_CHECK), false);
 
         if (result == LCD_LEFT_BUTTON_CHOICE)
@@ -4800,7 +4802,7 @@ void process_commands()
             serialecho_temperatures();
         }
 
-        eeprom_update_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 0); //invalidate temp. calibration in case that in will be aborted during the calibration process
+        eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 0); //invalidate temp. calibration in case that in will be aborted during the calibration process
 
         current_position[Z_AXIS] = MESH_HOME_Z_SEARCH;
         plan_buffer_line_curposXYZE(3000 / 60);
@@ -4824,7 +4826,7 @@ void process_commands()
             float temp = (40 + i * 5);
             printf_P(_N("\nStep: %d/6 (skipped)\nPINDA temperature: %d Z shift (mm):0\n"), i + 2, (40 + i*5));
             if (i >= 0) {
-                eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
+                eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
             }
             if (start_temp <= temp) break;
         }
@@ -4863,7 +4865,7 @@ void process_commands()
 
             printf_P(_N("\nPINDA temperature: %.1f Z shift (mm): %.3f"), current_temperature_pinda, current_position[Z_AXIS] - zero_z);
 
-            eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
+            eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
         }
         lcd_temp_cal_show_result(true);
         homing_flag = false;
@@ -4903,7 +4905,7 @@ void process_commands()
 			delay_keep_alive(1000);
 			serialecho_temperatures();
 		}
-		eeprom_update_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 0); //invalidate temp. calibration in case that in will be aborted during the calibration process
+		eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 0); //invalidate temp. calibration in case that in will be aborted during the calibration process
 
 		current_position[Z_AXIS] = 5;
 		plan_buffer_line_curposXYZE(3000 / 60);
@@ -4948,13 +4950,13 @@ void process_commands()
 
 			printf_P(_N("\nTemperature: %d  Z shift (mm): %.3f\n"), t_c, current_position[Z_AXIS] - zero_z);
 
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
 
 
 		}
 		custom_message_type = CustomMsg::Status;
 
-		eeprom_update_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
+		eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
 		puts_P(_N("Temperature calibration done."));
 			disable_x();
 			disable_y();
@@ -4962,7 +4964,7 @@ void process_commands()
 			disable_e0();
 			setTargetBed(0); //set bed target temperature back to 0
 		lcd_show_fullscreen_message_and_wait_P(_T(MSG_PINDA_CALIBRATION_DONE));
-		eeprom_update_byte((unsigned char *)EEPROM_TEMP_CAL_ACTIVE, 1);
+		eeprom_update_byte_notify((unsigned char *)EEPROM_TEMP_CAL_ACTIVE, 1);
 		lcd_update_enable(true);
 		lcd_update(2);
 
@@ -4977,12 +4979,13 @@ void process_commands()
     Default 3x3 grid can be changed on MK2.5/s and MK3/s to 7x7 grid.
     #### Usage
 
-          G80 [ N | R | V | L | R | F | B ]
+          G80 [ N | C | O | M | L | R | F | B | X | Y | W | H ]
 
 	#### Parameters
-      - `N` - Number of mesh points on x axis. Default is 3. Valid values are 3 and 7.
-      - `R` - Probe retries. Default 3 max. 10
-      - `V` - Verbosity level 1=low, 10=mid, 20=high. It only can be used if the firmware has been compiled with SUPPORT_VERBOSITY active.
+      - `N` - Number of mesh points on x axis. Default is value stored in EEPROM. Valid values are 3 and 7.
+      - `C` - Probe retry counts. Default is value stored in EEPROM. Valid values are 1 to 10.
+      - `O` - Return to origin. Default is 1. Valid values are 0 (false) and 1 (true).
+      - `M` - Use magnet compensation. Will only be used if number of mesh points is set to 7. Default is value stored in EEPROM. Valid values are 0 (false) and 1 (true).
 
       Using the following parameters enables additional "manual" bed leveling correction. Valid values are -100 microns to 100 microns.
     #### Additional Parameters
@@ -4990,16 +4993,13 @@ void process_commands()
       - `R` - Right Bed Level correct value in um.
       - `F` - Front Bed Level correct value in um.
       - `B` - Back Bed Level correct value in um.
-    */
 
-	/*
-    * Probes a grid and produces a mesh to compensate for variable bed height
-	* The S0 report the points as below
-	*  +----> X-axis
-	*  |
-	*  |
-	*  v Y-axis
-	*/
+      The following parameters are used to define the area used by the print:
+      - `X` - area lower left point X coordinate
+      - `Y` - area lower left point Y coordinate
+      - `W` - area width (on X axis)
+      - `H` - area height (on Y axis)
+    */
 
 	case 80: {
         gcode_G80();
@@ -5010,27 +5010,10 @@ void process_commands()
 		### G81 - Mesh bed leveling status <a href="https://reprap.org/wiki/G-code#G81:_Mesh_bed_leveling_status">G81: Mesh bed leveling status</a>
 		Prints mesh bed leveling status and bed profile if activated.
         */
-        case 81:
-            if (mbl.active) {
-                SERIAL_PROTOCOLPGM("Num X,Y: ");
-                SERIAL_PROTOCOL(MESH_NUM_X_POINTS);
-                SERIAL_PROTOCOL(',');
-                SERIAL_PROTOCOL(MESH_NUM_Y_POINTS);
-                SERIAL_PROTOCOLPGM("\nZ search height: ");
-                SERIAL_PROTOCOL(MESH_HOME_Z_SEARCH);
-                SERIAL_PROTOCOLLNPGM("\nMeasured points:");
-                for (uint8_t y = MESH_NUM_Y_POINTS; y-- > 0;) {
-                    for (uint8_t x = 0; x < MESH_NUM_X_POINTS; x++) {
-                        SERIAL_PROTOCOLPGM("  ");
-                        SERIAL_PROTOCOL_F(mbl.z_values[y][x], 5);
-                    }
-                    SERIAL_PROTOCOLLN();
-                }
-            }
-            else
-                SERIAL_PROTOCOLLNPGM("Mesh bed leveling not active.");
-            break;
-
+        case 81: {
+            gcode_G81_M420();
+        }
+    break;
 #if 0
         /*!
         ### G82: Single Z probe at current location - Not active <a href="https://reprap.org/wiki/G-code#G82:_Single_Z_probe_at_current_location">G82: Single Z probe at current location</a>
@@ -5065,7 +5048,7 @@ void process_commands()
                 }else{
                     // Save it to the eeprom
                     babystepLoadZ = babystepz;
-                    eeprom_update_word((uint16_t*)EEPROM_BABYSTEP_Z0 + BabyPosition, babystepLoadZ);
+                    eeprom_update_word_notify((uint16_t*)EEPROM_BABYSTEP_Z0 + BabyPosition, babystepLoadZ);
                     // adjust the Z
                     babystepsTodoZadd(babystepLoadZ);
                 }
@@ -5253,7 +5236,7 @@ void process_commands()
             // - they need to see the filename on the status screen instead of "Wait for user..."
             // So we won't update the message in farm mode...
             if( ! farm_mode){
-                LCD_MESSAGERPGM(_i("Wait for user..."));////MSG_USERWAIT c=20
+                LCD_MESSAGERPGM(_T(MSG_USERWAIT));
             } else {
                 custom_message_type = CustomMsg::Status; // let the lcd display the name of the printed G-code file in farm mode
             }
@@ -5284,7 +5267,7 @@ void process_commands()
     */
 
     case 17:
-        LCD_MESSAGERPGM(_i("No move."));////MSG_NO_MOVE c=20
+        LCD_MESSAGERPGM(_T(MSG_NO_MOVE));
         enable_x();
         enable_y();
         enable_z();
@@ -5313,7 +5296,7 @@ void process_commands()
 	### M21 - Init SD card <a href="https://reprap.org/wiki/G-code#M21:_Initialize_SD_card">M21: Initialize SD card</a>
     */
     case 21:
-      card.initsd();
+      card.mount();
       break;
 
     /*!
@@ -5338,7 +5321,7 @@ void process_commands()
 	### M24 - Start SD print <a href="https://reprap.org/wiki/G-code#M24:_Start.2Fresume_SD_print">M24: Start/resume SD print</a>
     */
     case 24:
-    if (isPrintPaused)
+    if (printingIsPaused())
       lcd_resume_print();
     else
     {
@@ -5353,7 +5336,7 @@ void process_commands()
       }
 
       card.startFileprint();
-      starttime=_millis();
+      print_job_timer.start();
       if (MMU2::mmu2.Enabled())
       {
         if (MMU2::mmu2.FindaDetectsFilament() && !fsensor.getFilamentPresent())
@@ -5378,7 +5361,7 @@ void process_commands()
 	  - `S` - Index in bytes
     */
     case 26:
-      if(card.cardOK && code_seen('S')) {
+      if(card.mounted && code_seen('S')) {
         long index = code_value_long();
         card.setIndex(index);
         // We don't disable interrupt during update of sdpos_atomic
@@ -5423,7 +5406,7 @@ void process_commands()
 
     */
     case 30:
-      if (card.cardOK){
+      if (card.mounted){
         card.closefile();
         card.removeFile(strchr_pointer + 4);
       }
@@ -5453,7 +5436,7 @@ void process_commands()
       if(strchr_pointer>namestartpos)
         call_procedure=false;  //false alert, 'P' found within filename
 
-      if( card.cardOK )
+      if( card.mounted )
       {
         card.openFileReadFilteredGcode(namestartpos,!call_procedure);
         if(code_seen('S'))
@@ -5471,7 +5454,7 @@ void process_commands()
                 la10c_reset();
 #endif
             }
-            starttime=_millis(); // procedure calls count as normal print time.
+            print_job_timer.start(); // procedure calls count as normal print time.
         }
       }
     } break;
@@ -5495,7 +5478,7 @@ void process_commands()
     case 31: //M31 take time since the start of the SD print or an M109 command
       {
       char time[30];
-      uint32_t t = (_millis() - starttime) / 1000;
+      uint32_t t = print_job_timer.duration();
       int16_t sec, min;
       min = t / 60;
       sec = t % 60;
@@ -5554,7 +5537,7 @@ void process_commands()
 
         // Reset the baby step value and the baby step applied flag.
         calibration_status_clear(CALIBRATION_STATUS_LIVE_ADJUST);
-        eeprom_update_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),0);
+        eeprom_update_word_notify(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),0);
 
         // Reset the skew and offset in both RAM and EEPROM.
         calibration_status_clear(CALIBRATION_STATUS_XYZ);
@@ -5922,6 +5905,45 @@ Sigma_Exit:
 #endif		// ENABLE_AUTO_BED_LEVELING
 
     /*!
+    ### M72 - Set/get Printer State <a href="https://reprap.org/wiki/G-code#M72:_Set.2FGet_Printer_State">M72: Set/get Printer State</a>
+    Without any parameter get printer state
+      - 0 = NotReady  Used by PrusaConnect
+      - 1 = IsReady   Used by PrusaConnect
+      - 2 = Idle
+      - 3 = SD printing finished
+      - 4 = Host printing finished
+      - 5 = SD printing
+      - 6 = Host printing
+
+    #### Usage
+
+        M72 [ S ]
+
+    #### Parameters
+        - `Snnn` - Set printer state 0 = not_ready, 1 = ready
+    */
+    case 72:
+    {
+        if(code_seen('S')){
+            switch (code_value_uint8()){
+            case 0:
+                SetPrinterState(PrinterState::NotReady);
+                break;
+            case 1:
+                SetPrinterState(PrinterState::IsReady);
+                break;
+            default:
+                break;
+            }
+        } else {
+            printf_P(_N("PrinterState: %d\n"),uint8_t(GetPrinterState()));
+            break;
+        }
+        break;
+    }
+
+
+    /*!
     ### M73 - Set/get print progress <a href="https://reprap.org/wiki/G-code#M73:_Set.2FGet_build_percentage">M73: Set/Get build percentage</a>
     #### Usage
 
@@ -5956,6 +5978,90 @@ Sigma_Exit:
         }
         break;
     }
+
+    /*!
+    ### M75 - Start the print job timer <a href="https://reprap.org/wiki/G-code#M75:_Start_the_print_job_timer">M75: Start the print job timer</a>
+    */
+    case 75:
+    {
+        print_job_timer.start();
+        break;
+    }
+
+    /*!
+    ### M76 - Pause the print job timer <a href="https://reprap.org/wiki/G-code#M76:_Pause_the_print_job_timer">M76: Pause the print job timer</a>
+    */
+    case 76:
+    {
+        print_job_timer.pause();
+        break;
+    }
+
+    /*!
+    ### M77 - Stop the print job timer <a href="https://reprap.org/wiki/G-code#M77:_Stop_the_print_job_timer">M77: Stop the print job timer</a>
+    */
+    case 77:
+    {
+        print_job_timer.stop();
+        save_statistics();
+        break;
+    }
+
+    /*!
+    ### M78 - Show statistical information about the print jobs <a href="https://reprap.org/wiki/G-code#M78:_Show_statistical_information_about_the_print_jobs">M78: Show statistical information about the print jobs</a>
+    */
+    case 78:
+    {
+        // @todo useful for maintenance notifications
+        SERIAL_ECHOPGM("STATS ");
+        SERIAL_ECHO(eeprom_read_dword((uint32_t *)EEPROM_TOTALTIME));
+        SERIAL_ECHOPGM(" min ");
+        SERIAL_ECHO(eeprom_read_dword((uint32_t *)EEPROM_FILAMENTUSED));
+        SERIAL_ECHOLNPGM(" cm.");
+        break;
+    }
+
+    /*!
+    ### M79 - Start host timer <a href="https://reprap.org/wiki/G-code#M79:_Start_host_timer">M79: Start host timer</a>
+    Start the printer-host enable keep-alive timer. While the timer has not expired, the printer will enable host specific features.
+    #### Usage
+
+        M79 [ S ]
+    #### Parameters
+       - `S` - Quoted string containing two characters e.g. "PL"
+    */
+    case 79:
+        M79_timer_restart();
+
+        if (code_seen('S'))
+        {
+            unquoted_string str = unquoted_string(strchr_pointer);
+            if (str.WasFound())
+            {
+                ResetHostStatusScreenName();
+                SetHostStatusScreenName(str.GetUnquotedString());
+            }
+        }
+#ifdef DEBUG_PRINTER_STATES
+        debug_printer_states();
+#endif //DEBUG_PRINTER_STATES
+
+        if (eeprom_read_byte((uint8_t*)EEPROM_UVLO_PRINT_TYPE) == PowerPanic::PRINT_TYPE_HOST
+           && printer_recovering()
+           && printingIsPaused()) {
+            // The print is in a paused state. The print was recovered following a power panic
+            // but up to this point the printer has been waiting for the M79 from the host
+            // Send action to the host, so the host can resume the print. It is up to the host
+            // to resume the print correctly.
+            if (uvlo_auto_recovery_ready) {
+                SERIAL_ECHOLNRPGM(MSG_HOST_ACTION_UVLO_AUTO_RECOVERY_READY);
+            } else {
+                SERIAL_ECHOLNRPGM(MSG_HOST_ACTION_UVLO_RECOVERY_READY);
+            }
+        }
+
+        break;
+
     /*!
   ### M104 - Set hotend temperature <a href="https://reprap.org/wiki/G-code#M104:_Set_Extruder_Temperature">M104: Set Extruder Temperature</a>
   #### Usage
@@ -6109,7 +6215,6 @@ Sigma_Exit:
 		heating_status = HeatingStatus::EXTRUDER_HEATING_COMPLETE;
         prusa_statistics(2);
 
-        //starttime=_millis();
         previous_millis_cmd.start();
       }
       break;
@@ -6412,7 +6517,6 @@ Sigma_Exit:
 	case 113:
 		if (code_seen('S')) {
 			host_keepalive_interval = code_value_uint8();
-//			NOMORE(host_keepalive_interval, 60);
 		}
 		else {
 			SERIAL_ECHO_START;
@@ -6457,15 +6561,24 @@ Sigma_Exit:
           // pause the print for 30s and ask the user to upgrade the firmware.
           show_upgrade_dialog_if_version_newer(++ strchr_pointer);
       } else {
+          char custom_mendel_name[MAX_CUSTOM_MENDEL_NAME_LENGTH];
+          eeprom_read_block(custom_mendel_name,(char*)EEPROM_CUSTOM_MENDEL_NAME,MAX_CUSTOM_MENDEL_NAME_LENGTH);
           SERIAL_ECHOPGM("FIRMWARE_NAME:Prusa-Firmware ");
           SERIAL_ECHORPGM(FW_VERSION_STR_P());
+          SERIAL_ECHOPGM("+");
+          SERIAL_ECHOPGM(STR(FW_COMMITNR));
+          SERIAL_ECHOPGM("_");
+          SERIAL_ECHOPGM(FW_COMMIT_HASH);
           SERIAL_ECHOPGM(" based on Marlin FIRMWARE_URL:https://github.com/prusa3d/Prusa-Firmware PROTOCOL_VERSION:");
           SERIAL_ECHOPGM(PROTOCOL_VERSION);
           SERIAL_ECHOPGM(" MACHINE_TYPE:");
-          SERIAL_ECHOPGM(CUSTOM_MENDEL_NAME);
+          SERIAL_PROTOCOL(custom_mendel_name);
           SERIAL_ECHOPGM(" EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS));
+#ifdef MACHINE_UUID
           SERIAL_ECHOPGM(" UUID:");
-          SERIAL_ECHOLNPGM(MACHINE_UUID);
+          SERIAL_ECHOPGM(MACHINE_UUID);
+#endif //MACHINE_UUID
+          SERIAL_ECHOLNPGM("");
 #ifdef EXTENDED_CAPABILITIES_REPORT
           extended_capabilities_report();
 #endif //EXTENDED_CAPABILITIES_REPORT
@@ -7513,6 +7626,16 @@ Sigma_Exit:
 #endif
 
     /*!
+    ### M420 - Mesh bed leveling status <a href="https://reprap.org/wiki/G-code#M420:_Mesh_bed_leveling_status">M420: Mesh bed leveling status</a>
+		Prints mesh bed leveling status and bed profile if activated.
+        */
+    case 420: // M420 Mesh bed leveling status
+    {
+        gcode_G81_M420();
+    }
+    break;
+
+    /*!
 	### M500 - Store settings in EEPROM <a href="https://reprap.org/wiki/G-code#M500:_Store_parameters_in_non-volatile_storage">M500: Store parameters in non-volatile storage</a>
 	Save current parameters to EEPROM.
     */
@@ -7720,17 +7843,77 @@ Sigma_Exit:
 
     /*!
     ### M601 - Pause print <a href="https://reprap.org/wiki/G-code#M601:_Pause_print">M601: Pause print</a>
+    Without any parameters it will park the extruder to default or last set position.
+    The default pause position will be set during power up and a reset, the new pause positions aren't permanent.
+    #### Usage
+
+         M601 [ X | Y | Z | S ]
+
+    #### Parameters
+     - `X` - X position to park at (default X_PAUSE_POS 50) these are saved until change or reset.
+     - `Y` - Y position to park at (default Y_PAUSE_POS 190) these are saved until change or reset.
+     - `Z` - Z raise before park (default Z_PAUSE_LIFT 20) these are saved until change or reset.
+     - `S` - Set values [S0 = set to default values | S1 = set values] without pausing
     */
     /*!
-    ### M125 - Pause print (TODO: not implemented)
+
+    ### M125 - Pause print <a href="https://reprap.org/wiki/G-code#M125:_Pause_print">M125: Pause print</a>
+    Without any parameters it will park the extruder to default or last set position.
+    The default pause position will be set during power up and a reset, the new pause positions aren't permanent.
+    #### Usage
+
+         M125 [ X | Y | Z | S ]
+
+    #### Parameters
+     - `X` - X position to park at (default X_PAUSE_POS 50) these are saved until change or reset.
+     - `Y` - Y position to park at (default Y_PAUSE_POS 190) these are saved until change or reset.
+     - `Z` - Z raise before park (default Z_PAUSE_LIFT 20) these are saved until change or reset.
+     - `S` - Set values [S0 = set to default values | S1 = set values] without pausing
     */
     /*!
     ### M25 - Pause SD print <a href="https://reprap.org/wiki/G-code#M25:_Pause_SD_print">M25: Pause SD print</a>
+    Without any parameters it will park the extruder to default or last set position.
+    The default pause position will be set during power up and a reset, the new pause positions aren't permanent.
+    #### Usage
+
+         M25 [ X | Y | Z | S ]
+
+    #### Parameters
+     - `X` - X position to park at (default X_PAUSE_POS 50) these are saved until change or reset.
+     - `Y` - Y position to park at (default Y_PAUSE_POS 190) these are saved until change or reset.
+     - `Z` - Z raise before park (default Z_PAUSE_LIFT 20) these are saved until change or reset.
+     - `S` - Set values [S0 = set to default values | S1 = set values] without pausing
     */
     case 25:
+    case 125:
     case 601:
     {
-        if (!isPrintPaused) {
+        //Set new pause position for all three axis XYZ
+        for (uint8_t axis = 0; axis < E_AXIS; axis++) {
+          if (code_seen(axis_codes[axis])) {
+            //Check that the positions are within hardware limits
+            pause_position[axis] = constrain(code_value(), min_pos[axis], max_pos[axis]);
+          }
+        }
+        //Set default or new pause position without pausing
+        if (code_seen('S')) {
+            if ( code_value_uint8() == 0 ) {
+                pause_position[X_AXIS] = X_PAUSE_POS;
+                pause_position[Y_AXIS] = Y_PAUSE_POS;
+                pause_position[Z_AXIS] = Z_PAUSE_LIFT;
+            }
+        break;
+        }
+/*
+        //Debug serial output
+        SERIAL_ECHOPGM("X:");
+        SERIAL_ECHOLN(pause_position[X_AXIS]);
+        SERIAL_ECHOPGM("Y:");
+        SERIAL_ECHOLN(pause_position[Y_AXIS]);
+        SERIAL_ECHOPGM("Z:");
+        SERIAL_ECHOLN(pause_position[Z_AXIS]);
+*/
+        if (!printingIsPaused()) {
             st_synchronize();
             ClearToSend(); //send OK even before the command finishes executing because we want to make sure it is not skipped because of cmdqueue_pop_front();
             cmdqueue_pop_front(); //trick because we want skip this command (M601) after restore
@@ -7744,7 +7927,7 @@ Sigma_Exit:
     */
     case 602:
     {
-        if (isPrintPaused) lcd_resume_print();
+        if (printingIsPaused()) lcd_resume_print();
     }
     break;
 
@@ -7758,15 +7941,28 @@ Sigma_Exit:
     break;
 
   case 850: {
-	//! ### M850 - set sheet parameters
-	//! //!@n M850 - Set sheet data S[id] Z[offset] L[label] B[bed_temp] P[PINDA_TEMP]
-	bool bHasZ = false, bHasLabel = false, bHasBed = false, bHasPinda = false;
-	uint8_t iSel = 0;
+    /*!
+    ### M850 - Sheet parameters <a href="https://reprap.org/wiki/G-code#M850:_Sheet_parameters">M850: Sheet parameters</a>
+    Get and Set Sheet parameters
+    #### Usage
+
+         M850 [ S | Z | L | B | P | A ]
+
+    #### Parameters
+     - `S` - Sheet id [0-7]
+     - `Z` - Z offset
+     - `L` - Label [aA-zZ, 0-9 max 7 chars]
+     - `B` - Bed temp
+     - `P` - PINDA temp
+     - `A` - Active [0|1]
+	*/
+    uint8_t iSel = 0;
 	int16_t zraw = 0;
 	float z_val = 0;
 	char strLabel[8];
 	uint8_t iBedC = 0;
 	uint8_t iPindaC = 0;
+	bool bIsActive=false;
 	strLabel[7] = '\0'; // null terminate.
 	size_t max_sheets = sizeof(EEPROM_Sheets_base->s)/sizeof(EEPROM_Sheets_base->s[0]);
 
@@ -7780,8 +7976,9 @@ Sigma_Exit:
 			break; // invalid sheet ID
 		}
 	} else {
-		break;
+		iSel = eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet));
 	}
+
 	if (code_seen('Z')){
 		z_val = code_value();
 		zraw = z_val*cs.axis_steps_per_mm[Z_AXIS];
@@ -7790,7 +7987,7 @@ Sigma_Exit:
 			SERIAL_PROTOCOLLNPGM(" Z VALUE OUT OF RANGE");
 			break;
 		}
-		bHasZ = true;
+		eeprom_update_word_notify(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[iSel].z_offset)),zraw);
 	}
 	else
 	{
@@ -7800,13 +7997,13 @@ Sigma_Exit:
 
 	if (code_seen('L'))
 	{
-		bHasLabel = true;
 		char *src = strchr_pointer + 1;
 		while (*src == ' ') ++src;
 		if (*src != '\0')
 		{
 			strncpy(strLabel,src,7);
 		}
+		eeprom_update_block_notify(strLabel,EEPROM_Sheets_base->s[iSel].name,sizeof(Sheet::name));
 	}
 	else
 	{
@@ -7815,8 +8012,8 @@ Sigma_Exit:
 
 	if (code_seen('B'))
 	{
-		bHasBed = true;
 		iBedC = code_value_uint8();
+		eeprom_update_byte_notify(&EEPROM_Sheets_base->s[iSel].bed_temp, iBedC);
 	}
 	else
 	{
@@ -7825,12 +8022,26 @@ Sigma_Exit:
 
 	if (code_seen('P'))
 	{
-		bHasPinda = true;
 		iPindaC = code_value_uint8();
+		eeprom_update_byte_notify(&EEPROM_Sheets_base->s[iSel].pinda_temp, iPindaC);
 	}
 	else
-		iPindaC = eeprom_read_byte(&EEPROM_Sheets_base->s[iSel].pinda_temp);
 	{
+		iPindaC = eeprom_read_byte(&EEPROM_Sheets_base->s[iSel].pinda_temp);
+	}
+
+	if (code_seen('A'))
+	{
+		bIsActive |= code_value_uint8() || (eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)) == iSel);
+		if(bIsActive && eeprom_is_sheet_initialized(iSel)) {
+            eeprom_update_byte_notify(&EEPROM_Sheets_base->active_sheet, iSel);
+        } else {
+            bIsActive = 0;
+        }
+	}
+	else
+	{
+		bIsActive = (eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)) == iSel);
 	}
 
 	SERIAL_PROTOCOLPGM("Sheet ");
@@ -7838,22 +8049,6 @@ Sigma_Exit:
 	if (!eeprom_is_sheet_initialized(iSel))
 		SERIAL_PROTOCOLLNPGM(" NOT INITIALIZED");
 
-	if (bHasZ)
-	{
-		eeprom_update_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->s[iSel].z_offset)),zraw);
-	}
-	if (bHasLabel)
-	{
-		eeprom_update_block(strLabel,EEPROM_Sheets_base->s[iSel].name,sizeof(Sheet::name));
-	}
-	if (bHasBed)
-	{
-		eeprom_update_byte(&EEPROM_Sheets_base->s[iSel].bed_temp, iBedC);
-	}
-	if (bHasPinda)
-	{
-		eeprom_update_byte(&EEPROM_Sheets_base->s[iSel].pinda_temp, iPindaC);
-	}
 
 	SERIAL_PROTOCOLPGM(" Z");
 	SERIAL_PROTOCOL_F(z_val,4);
@@ -7864,8 +8059,9 @@ Sigma_Exit:
 	SERIAL_PROTOCOLPGM(" B");
 	SERIAL_PROTOCOL((int)iBedC);
 	SERIAL_PROTOCOLPGM(" P");
-	SERIAL_PROTOCOLLN((int)iPindaC);
-
+	SERIAL_PROTOCOL((int)iPindaC);
+	SERIAL_PROTOCOLPGM(" A");
+	SERIAL_PROTOCOLLN((int)bIsActive);
 	break;
 }
 
@@ -7900,9 +8096,7 @@ Sigma_Exit:
 		cancel_heatup = false;
 
 		bool is_pinda_cooling = false;
-		if ((degTargetBed() == 0) && (degTargetHotend(0) == 0)) {
-		    is_pinda_cooling = true;
-		}
+		if (!(CHECK_ALL_HEATERS)) is_pinda_cooling = true;
 
 		while ( ((!is_pinda_cooling) && (!cancel_heatup) && (current_temperature_pinda < set_target_pinda)) || (is_pinda_cooling && (current_temperature_pinda > set_target_pinda)) ) {
 			if ((_millis() - codenum) > 1000) //Print Temp Reading every 1 second while waiting.
@@ -7945,24 +8139,24 @@ Sigma_Exit:
 			gcode_M861_print_pinda_cal_eeprom();
 		}
 		else if (code_seen('!')) { // ! - Set factory default values
-			eeprom_write_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
+			eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
 			int16_t z_shift = 8;    //40C -  20um -   8usteps
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT, z_shift);
 			z_shift = 24;   //45C -  60um -  24usteps
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 1, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 1, z_shift);
 			z_shift = 48;   //50C - 120um -  48usteps
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 2, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 2, z_shift);
 			z_shift = 80;   //55C - 200um -  80usteps
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 3, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 3, z_shift);
 			z_shift = 120;  //60C - 300um - 120usteps
-			eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 4, z_shift);
+			eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + 4, z_shift);
 			SERIAL_PROTOCOLLNPGM("factory restored");
 		}
 		else if (code_seen('Z')) { // Z - Set all values to 0 (effectively disabling PINDA temperature compensation)
-			eeprom_write_byte((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
+			eeprom_update_byte_notify((uint8_t*)EEPROM_CALIBRATION_STATUS_PINDA, 1);
 			int16_t z_shift = 0;
 			for (uint8_t i = 0; i < 5; i++) {
-				eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
+				eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + i, z_shift);
 			}
 			SERIAL_PROTOCOLLNPGM("zerorized");
 		}
@@ -7971,7 +8165,7 @@ Sigma_Exit:
 			if (code_seen('I')) {
 			    uint8_t index = code_value_uint8();
 				if (index < 5) {
-					eeprom_update_word((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + index, usteps);
+					eeprom_update_word_notify((uint16_t*)EEPROM_PROBE_TEMP_SHIFT + index, usteps);
 					SERIAL_PROTOCOLLNRPGM(MSG_OK);
 					SERIAL_PROTOCOLLNRPGM(_header);
 					gcode_M861_print_pinda_cal_eeprom();
@@ -7994,6 +8188,7 @@ Sigma_Exit:
       - M862.3 { P"<model_name>" | Q }
       - M862.4 { P<fw_version> | Q }
       - M862.5 { P<gcode_level> | Q }
+      - M862.6 Not used but reserved by 32-bit
 
     When run with P<> argument, the check is performed against the input value.
     When run with Q argument, the current value is shown.
@@ -8075,6 +8270,10 @@ Sigma_Exit:
                          }
                     else if(code_seen('Q'))
                          SERIAL_PROTOCOLLN(GCODE_LEVEL);
+                    break;
+               case ClPrintChecking::_Features:  // ~ .6 used by 32-bit
+                    break;
+               default:
                     break;
                }
         break;
@@ -8175,6 +8374,7 @@ Sigma_Exit:
     }
     break;
 
+#ifdef TMC2130
 #ifdef TMC2130_SERVICE_CODES_M910_M918
 
     /*!
@@ -8235,6 +8435,7 @@ Sigma_Exit:
         }
     }
     break;
+#endif // TMC2130_SERVICE_CODES_M910_M918
 
     /*!
 	### M913 - Print TMC2130 currents <a href="https://reprap.org/wiki/G-code#M913:_Print_TMC2130_currents">M913: Print TMC2130 currents</a>
@@ -8247,17 +8448,18 @@ Sigma_Exit:
     }
     break;
 
-#endif // TMC2130_SERVICE_CODES_M910_M918
    /*!
 	### M914 - Set TMC2130 normal mode <a href="https://reprap.org/wiki/G-code#M914:_Set_TMC2130_normal_mode">M914: Set TMC2130 normal mode</a>
   Updates EEPROM only if "P" is given, otherwise temporary (lasts until reset or motor idle timeout)
       #### Usage
 
-        M914 [ P | R ]
+        M914 [ P | R | Q ]
 
     #### Parameters
     - `P` - Make the mode change permanent (write to EEPROM)
     - `R` - Revert to EEPROM value
+    - `Q` - Print effective silent/normal status. (Does not report override)
+
     */
 
     /*!
@@ -8265,30 +8467,37 @@ Sigma_Exit:
     Updates EEPROM only if "P" is given, otherwise temporary (lasts until reset or motor idle timeout)
       #### Usage
 
-        M915 [ P | R ]
+        M915 [ P | R | Q]
 
     #### Parameters
     - `P` - Make the mode change permanent (write to EEPROM)
     - `R` - Revert to EEPROM value
+    - `Q` - Print effective silent/normal status. (Does not report override)
     */
-#ifdef TMC2130
     case 914:
     case 915:
     {
-      uint8_t newMode = (mcode_in_progress==914) ? TMC2130_MODE_NORMAL : TMC2130_MODE_SILENT;
-      //printf_P(_n("tmc2130mode/smm/eep: %d %d %d %d"),tmc2130_mode,SilentModeMenu,eeprom_read_byte((uint8_t*)EEPROM_SILENT), bEnableForce_z);
-      if (code_seen('R'))
-      {
-          newMode = eeprom_read_byte((uint8_t*)EEPROM_SILENT);
-      }
-      else if (code_seen('P'))
-      {
-          uint8_t newMenuMode = (mcode_in_progress==914) ? SILENT_MODE_NORMAL : SILENT_MODE_STEALTH;
-          eeprom_update_byte((unsigned char *)EEPROM_SILENT, newMenuMode);
-          SilentModeMenu = newMenuMode;
-          //printf_P(_n("tmc2130mode/smm/eep: %d %d %d %d"),tmc2130_mode,SilentModeMenu,eeprom_read_byte((uint8_t*)EEPROM_SILENT), bEnableForce_z);
-      }
+    uint8_t newMode = (mcode_in_progress==914) ? TMC2130_MODE_NORMAL : TMC2130_MODE_SILENT;
+    //printf_P(_n("tmc2130mode/smm/eep: %d %d %d %d"),tmc2130_mode,SilentModeMenu,eeprom_read_byte((uint8_t*)EEPROM_SILENT), bEnableForce_z);
+    if (code_seen('R'))
+    {
+        newMode = eeprom_read_byte((uint8_t*)EEPROM_SILENT);
+    }
+    else if (code_seen('P'))
+    {
+        uint8_t newMenuMode = (mcode_in_progress==914) ? SILENT_MODE_NORMAL : SILENT_MODE_STEALTH;
+        eeprom_update_byte_notify((unsigned char *)EEPROM_SILENT, newMenuMode);
+        SilentModeMenu = newMenuMode;
+        //printf_P(_n("tmc2130mode/smm/eep: %d %d %d %d"),tmc2130_mode,SilentModeMenu,eeprom_read_byte((uint8_t*)EEPROM_SILENT), bEnableForce_z);
+    }
+    else if (code_seen('Q'))
+    {
+        printf_P(PSTR("%S: %S\n"), _O(MSG_MODE),
+            tmc2130_mode == TMC2130_MODE_NORMAL ?
+            _O(MSG_NORMAL) : _O(MSG_SILENT)
+        );
 
+    }
       if (tmc2130_mode != newMode
 #ifdef PSU_Delta
           || !bEnableForce_z
@@ -8303,7 +8512,6 @@ Sigma_Exit:
     }
     break;
 
-#endif // TMC2130
 #ifdef TMC2130_SERVICE_CODES_M910_M918
     /*!
     ### M916 - Set TMC2130 Stallguard sensitivity threshold <a href="https://reprap.org/wiki/G-code#M916:_Set_TMC2130_Stallguard_sensitivity_threshold">M916: Set TMC2130 Stallguard sensitivity threshold</a>
@@ -8376,6 +8584,7 @@ Sigma_Exit:
     break;
 
 #endif //TMC2130_SERVICE_CODES_M910_M918
+#endif // TMC2130
 
     /*!
 	### M350 - Set microstepping mode <a href="https://reprap.org/wiki/G-code#M350:_Set_microstepping_mode">M350: Set microstepping mode</a>
@@ -8526,7 +8735,7 @@ Sigma_Exit:
     break;
 
     /*!
-    ### M702 - Unload filament <a href="https://reprap.org/wiki/G-code#M702:_Unload_filament">G32: Undock Z Probe sled</a>
+    ### M702 - Unload filament <a href="https://reprap.org/wiki/G-code#M702:_Unload_filament">M702: Unload filament</a>
     #### Usage
 
         M702 [ U | Z ]
@@ -8659,14 +8868,17 @@ Sigma_Exit:
     } break;
 
     /*!
-    ### M709 - MMU reset <a href="https://reprap.org/wiki/G-code#M709:_MMU_reset">M709: MMU reset</a>
-    The MK3S cannot not power off the MMU, for that reason the functionality is not supported.
+    ### M709 - MMU power & reset <a href="https://reprap.org/wiki/G-code#M709:_MMU_power_&_reset">M709: MMU power & reset</a>
+    The MK3S cannot not power off the MMU, but we can en- and disable the MMU.
+
+    The new state of the MMU is stored in printer's EEPROM - i.e. if you disable the MMU via M709, it will not be activated after the printer resets.
     #### Usage
 
-        M709 [ X ]
+        M709 [ S | X ]
 
     #### Parameters
-    - `X` - Reset MMU (0:soft reset | 1:hardware reset)
+    - `X` - Reset MMU (0:soft reset | 1:hardware reset | 42: erase MMU eeprom)
+    - `S` - En-/disable the MMU (0:off | 1:on)
 
     #### Example
 
@@ -8674,9 +8886,32 @@ Sigma_Exit:
 
     M709 X1 - toggle the MMU's reset pin (hardware reset)
 
+    M709 X42 - erase MMU EEPROM
+
+    M709 S1 - enable MMU
+
+    M709 S0 - disable MMU
+
+    M709    - Serial message if en- or disabled
     */
     case 709:
     {
+        if (code_seen('S'))
+        {
+            switch (code_value_uint8())
+            {
+            case 0:
+                eeprom_update_byte_notify((uint8_t *)EEPROM_MMU_ENABLED, false);
+                MMU2::mmu2.Stop();
+                break;
+            case 1:
+                eeprom_update_byte_notify((uint8_t *)EEPROM_MMU_ENABLED, true);
+                MMU2::mmu2.Start();
+                break;
+            default:
+                break;
+            }
+        }
         if (MMU2::mmu2.Enabled() && code_seen('X'))
         {
             switch (code_value_uint8())
@@ -8687,10 +8922,14 @@ Sigma_Exit:
             case 1:
                 MMU2::mmu2.Reset(MMU2::MMU2::ResetPin);
                 break;
+            case 42:
+                MMU2::mmu2.Reset(MMU2::MMU2::EraseEEPROM);
+                break;
             default:
                 break;
             }
         }
+    MMU2::mmu2.Status();
     }
     break;
 
@@ -9394,19 +9633,18 @@ void controllerFan()
  */
 static void handleSafetyTimer()
 {
-    if (printer_active() || (!degTargetBed() && !degTargetHotend(0)) || (!safetytimer_inactive_time))
+    if (printer_active() || !(CHECK_ALL_HEATERS) || !safetytimer_inactive_time)
     {
         safetyTimer.stop();
     }
-    else if ((degTargetBed() || degTargetHotend(0)) && (!safetyTimer.running()))
+    else if ((CHECK_ALL_HEATERS) && !safetyTimer.running())
     {
         safetyTimer.start();
     }
     else if (safetyTimer.expired(farm_mode?FARM_DEFAULT_SAFETYTIMER_TIME_ms:safetytimer_inactive_time))
     {
-        setTargetBed(0);
-        setTargetHotend(0);
-        lcd_show_fullscreen_message_and_wait_P(_i("Heating disabled by safety timer."));////MSG_BED_HEATING_SAFETY_DISABLED c=20 r=4
+        disable_heater();
+        lcd_show_fullscreen_message_and_wait_P(_T(MSG_BED_HEATING_SAFETY_DISABLED));
     }
 }
 #endif //SAFETYTIMER
@@ -9430,6 +9668,13 @@ void manage_inactivity(bool ignore_stepper_queue/*=false*/) //default argument s
 
     if(buflen < (BUFSIZE-1)){
         get_command();
+    }
+
+    if (blocks_queued() && GetPrinterState() == PrinterState::IsHostPrinting && usb_timer.expired((USB_TIMER_TIMEOUT) / 2))
+    {
+        // Handle the case where planned moves may take a longer time to execute than the USB timer period.
+        // An example is the toolchange unload sequence generated by PrusaSlicer with default settings.
+        usb_timer.start();
     }
 
   if(max_inactive_time && previous_millis_cmd.expired(max_inactive_time))
@@ -9516,6 +9761,7 @@ void manage_inactivity(bool ignore_stepper_queue/*=false*/) //default argument s
   host_autoreport();
 #endif //AUTO_REPORT
   host_keepalive();
+  M79_timer_update_status();
 }
 
 void kill(const char *full_screen_message) {
@@ -9537,8 +9783,8 @@ void kill(const char *full_screen_message) {
     }
 
     // update eeprom with the correct kill message to be shown on startup
-    eeprom_write_word((uint16_t*)EEPROM_KILL_MESSAGE, (uint16_t)full_screen_message);
-    eeprom_write_byte((uint8_t*)EEPROM_KILL_PENDING_FLAG, KILL_PENDING_FLAG);
+    eeprom_write_word_notify((uint16_t*)EEPROM_KILL_MESSAGE, (uint16_t)full_screen_message);
+    eeprom_write_byte_notify((uint8_t*)EEPROM_KILL_PENDING_FLAG, KILL_PENDING_FLAG);
 
     softReset();
 }
@@ -9562,9 +9808,36 @@ void UnconditionalStop()
     cmdqueue_reset();
     cmdqueue_serial_disabled = false;
 
-    // Reset the sd status
-    card.sdprinting = false;
-    card.closefile();
+    st_reset_timer();
+    CRITICAL_SECTION_END;
+
+    // clear paused state immediately
+    did_pause_print = false;
+    print_job_timer.stop();
+}
+
+void ConditionalStop()
+{
+    CRITICAL_SECTION_START;
+
+    // Don't disable the heaters! lcd_print_stop_finish() will do it later via lcd_cooldown()
+    //
+    // However, the firmware must take into account the edge case when the firmware
+    // is running M109 or M190 G-codes. These G-codes execute a blocking while loop
+    // which waits for the bed or nozzle to reach their target temperature.
+    // To exit the loop, the firmware must set cancel_heatup to true.
+    cancel_heatup = true;
+    heating_status = HeatingStatus::NO_HEATING;
+
+    // Clear any saved printing state
+    cancel_saved_printing();
+
+    // Abort the planner
+    planner_abort_hard();
+
+    // Reset the queue
+    cmdqueue_reset();
+    cmdqueue_serial_disabled = false;
 
     st_reset_timer();
     CRITICAL_SECTION_END;
@@ -9584,7 +9857,7 @@ void ThermalStop(bool allow_recovery)
 
         // Either pause or stop the print
         if(allow_recovery && printJobOngoing()) {
-            if (!isPrintPaused) {
+            if (!printingIsPaused()) {
                 lcd_setalertstatuspgm(_T(MSG_PAUSED_THERMAL_ERROR), LCD_STATUS_CRITICAL);
 
                 // we cannot make a distinction for the host here, the pause must be instantaneous
@@ -9602,7 +9875,7 @@ void ThermalStop(bool allow_recovery)
             }
         } else {
             // We got a hard thermal error and/or there is no print going on. Just stop.
-            print_stop();
+            print_stop(false, true);
         }
 
         // Report the error on the serial
@@ -9718,13 +9991,15 @@ void setPwmFrequency(uint8_t pin, int val)
 }
 #endif //FAST_PWM_FAN
 
-void save_statistics(uint32_t _total_filament_used, uint32_t _total_print_time) {
+void save_statistics() {
     uint32_t _previous_filament = eeprom_init_default_dword((uint32_t *)EEPROM_FILAMENTUSED, 0); //_previous_filament unit: meter
     uint32_t _previous_time = eeprom_init_default_dword((uint32_t *)EEPROM_TOTALTIME, 0);        //_previous_time unit: min
 
-    eeprom_update_dword((uint32_t *)EEPROM_TOTALTIME, _previous_time + _total_print_time); // EEPROM_TOTALTIME unit: min
-    eeprom_update_dword((uint32_t *)EEPROM_FILAMENTUSED, _previous_filament + (_total_filament_used / 1000));
+    uint32_t time_minutes = print_job_timer.duration() / 60;
+    eeprom_update_dword_notify((uint32_t *)EEPROM_TOTALTIME, _previous_time + time_minutes); // EEPROM_TOTALTIME unit: min
+    eeprom_update_dword_notify((uint32_t *)EEPROM_FILAMENTUSED, _previous_filament + (total_filament_used / 1000));
 
+    print_job_timer.reset();
     total_filament_used = 0;
 
     if (MMU2::mmu2.Enabled()) {
@@ -9842,7 +10117,7 @@ void check_babystep()
 	if ((babystep_z < Z_BABYSTEP_MIN) || (babystep_z > Z_BABYSTEP_MAX)) {
 		babystep_z = 0; //if babystep value is out of min max range, set it to 0
 		SERIAL_ECHOLNPGM("Z live adjust out of range. Setting to 0");
-		eeprom_write_word(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->
+		eeprom_write_word_notify(reinterpret_cast<uint16_t *>(&(EEPROM_Sheets_base->
             s[(eeprom_read_byte(&(EEPROM_Sheets_base->active_sheet)))].z_offset)),
                     babystep_z);
 		lcd_show_fullscreen_message_and_wait_P(PSTR("Z live adjust out of range. Setting to 0. Click to continue."));
@@ -10413,19 +10688,18 @@ float temp_compensation_pinda_thermistor_offset(float temperature_pinda)
 void long_pause() //long pause print
 {
 	st_synchronize();
-	start_pause_print = _millis();
 
     // Stop heaters
     heating_status = HeatingStatus::NO_HEATING;
     setTargetHotend(0);
 
     // Lift z
-    raise_z(Z_PAUSE_LIFT);
+    raise_z(pause_position[Z_AXIS]);
 
     // Move XY to side
     if (axis_known_position[X_AXIS] && axis_known_position[Y_AXIS]) {
-        current_position[X_AXIS] = X_PAUSE_POS;
-        current_position[Y_AXIS] = Y_PAUSE_POS;
+        current_position[X_AXIS] = pause_position[X_AXIS];
+        current_position[Y_AXIS] = pause_position[Y_AXIS];
         plan_buffer_line_curposXYZE(50);
     }
 
@@ -10459,7 +10733,7 @@ void save_print_file_state() {
         saved_sdpos -= sdlen_planner;
         sdlen_cmdqueue = cmdqueue_calc_sd_length(); //length of sd commands in cmdqueue
         saved_sdpos -= sdlen_cmdqueue;
-        saved_printing_type = PRINTING_TYPE_SD;
+        saved_printing_type = PowerPanic::PRINT_TYPE_SD;
     }
     else if (usb_timer.running()) { //reuse saved_sdpos for storing line number
         saved_sdpos = gcode_LastN; //start with line number of command added recently to cmd queue
@@ -10467,10 +10741,10 @@ void save_print_file_state() {
         nlines = planner_calc_sd_length(); //number of lines of commands in planner
         saved_sdpos -= nlines;
         saved_sdpos -= buflen; //number of blocks in cmd buffer
-        saved_printing_type = PRINTING_TYPE_USB;
+        saved_printing_type = PowerPanic::PRINT_TYPE_HOST;
     }
     else {
-        saved_printing_type = PRINTING_TYPE_NONE;
+        saved_printing_type = PowerPanic::PRINT_TYPE_NONE;
         //not sd printing nor usb printing
     }
 
@@ -10564,11 +10838,11 @@ void save_print_file_state() {
 }
 
 void restore_print_file_state() {
-    if (saved_printing_type == PRINTING_TYPE_SD) { //was sd printing
+    if (saved_printing_type == PowerPanic::PRINT_TYPE_SD) { //was sd printing
         card.setIndex(saved_sdpos);
         sdpos_atomic = saved_sdpos;
         card.sdprinting = true;
-    } else if (saved_printing_type == PRINTING_TYPE_USB) { //was usb printing
+    } else if (saved_printing_type == PowerPanic::PRINT_TYPE_HOST) { //was usb printing
         gcode_LastN = saved_sdpos; //saved_sdpos was reused for storing line number when usb printing
         serial_count = 0;
         FlushSerialRequestResend();
@@ -10606,6 +10880,15 @@ void refresh_print_state_in_ram()
     saved_extruder_relative_mode = axis_relative_modes & E_AXIS_MASK;
     saved_fan_speed = fanSpeed;
     isPartialBackupAvailable = true;
+}
+
+void __attribute__((noinline)) refresh_saved_feedrate_multiplier_in_ram() {
+    if (!saved_printing) {
+        // There is no saved print, therefore nothing to refresh
+        return;
+    }
+
+    saved_feedmultiply2 = feedmultiply;
 }
 
 void clear_print_state_in_ram()
@@ -10684,6 +10967,36 @@ void stop_and_save_print_to_ram(float z_move, float e_move)
   }
 }
 
+/// @brief Read saved filename from EEPROM and send g-code command: M23 <filename>
+void restore_file_from_sd()
+{
+    char filename[FILENAME_LENGTH];
+    char dir_name[9];
+    char extension_ptr[5];
+    uint8_t depth = eeprom_read_byte((uint8_t*)EEPROM_DIR_DEPTH);
+
+    for (uint8_t i = 0; i < depth; i++) {
+        eeprom_read_block(dir_name, (const char *)EEPROM_DIRS + 8 * i, 8);
+        dir_name[8] = '\0';
+        card.chdir(dir_name, false);
+    }
+
+    // Recover DOS 8.3 filename without extension.
+    // Short filenames are always null terminated.
+    eeprom_read_block(filename, (const char *)EEPROM_FILENAME, 8);
+
+    // Add null delimiter in case all 8 characters were not NULL
+    filename[8] = '\0';
+
+    // Add extension to complete the DOS 8.3 filename e.g. ".gco" or ".g"
+    extension_ptr[0] = '.';
+    eeprom_read_block(&extension_ptr[1], (const char *)EEPROM_FILENAME_EXTENSION, 3);
+    extension_ptr[4] = '\0';
+    strcat(filename, extension_ptr);
+
+    enquecommandf_P(MSG_M23, filename);
+}
+
 void restore_extruder_temperature_from_ram() {
     if ((uint16_t)degTargetHotend(active_extruder) != saved_extruder_temperature)
     {
@@ -10758,9 +11071,10 @@ void restore_print_from_ram_and_continue(float e_move)
 	set_destination_to_current();
 
     restore_print_file_state();
-
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO, PowerPanic::NO_PENDING_RECOVERY);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_Z_LIFTED, 0);
 	lcd_setstatuspgm(MSG_WELCOME);
-    saved_printing_type = PRINTING_TYPE_NONE;
+    saved_printing_type = PowerPanic::PRINT_TYPE_NONE;
 	saved_printing = false;
     planner_aborted = true; // unroll the stack
 }
@@ -10768,9 +11082,10 @@ void restore_print_from_ram_and_continue(float e_move)
 // Cancel the state related to a currently saved print
 void cancel_saved_printing()
 {
-    eeprom_update_byte((uint8_t*)EEPROM_UVLO, NO_PENDING_RECOVERY);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO, PowerPanic::NO_PENDING_RECOVERY);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_Z_LIFTED, 0);
     saved_start_position[0] = SAVED_START_POSITION_UNSET;
-    saved_printing_type = PRINTING_TYPE_NONE;
+    saved_printing_type = PowerPanic::PRINT_TYPE_NONE;
     saved_printing = false;
 }
 
@@ -10838,11 +11153,10 @@ void load_filament_final_feed()
 }
 
 //! @brief Wait for user to check the state
-//! @par nozzle_temp nozzle temperature to load filament
-void M600_check_state(float nozzle_temp)
+bool M600_check_state_and_repeat()
 {
-    uint8_t lcd_change_filament_state = 0;
-    while (lcd_change_filament_state != 1)
+    uint8_t lcd_change_filament_state = 10;
+    while (lcd_change_filament_state != 0 && lcd_change_filament_state != 3)
     {
         KEEPALIVE_STATE(PAUSED_FOR_USER);
         lcd_change_filament_state = lcd_alright();
@@ -10850,7 +11164,7 @@ void M600_check_state(float nozzle_temp)
         switch(lcd_change_filament_state)
         {
         // Filament failed to load so load it again
-        case 2:
+        case 1:
             if (MMU2::mmu2.Enabled()) {
                 uint8_t eject_slot = MMU2::mmu2.get_current_tool();
 
@@ -10861,19 +11175,23 @@ void M600_check_state(float nozzle_temp)
                 mmu_M600_filament_change_screen(eject_slot);
 
                 // After user clicks knob, MMU will load the filament
-                mmu_M600_load_filament(false, nozzle_temp);
+                mmu_M600_load_filament(false);
             } else {
                 M600_load_filament_movements();
             }
             break;
 
         // Filament loaded properly but color is not clear
-        case 3:
+        case 2:
             st_synchronize();
             load_filament_final_feed();
             lcd_loading_color();
             st_synchronize();
             break;
+
+        // Unload filament
+        case 3:
+           return true;
 
         // Everything good
         default:
@@ -10881,15 +11199,14 @@ void M600_check_state(float nozzle_temp)
             break;
         }
     }
+    return false;
 }
 
 //! @brief Wait for user action
 //!
 //! Beep, manage nozzle heater and wait for user to start unload filament
 //! If times out, active extruder temperature is set to 0.
-//!
-//! @param HotendTempBckp Temperature to be restored for active extruder, after user resolves MMU problem.
-void M600_wait_for_user(float HotendTempBckp) {
+void M600_wait_for_user() {
 
 		KEEPALIVE_STATE(PAUSED_FOR_USER);
 
@@ -10907,7 +11224,7 @@ void M600_wait_for_user(float HotendTempBckp) {
 				delay_keep_alive(4);
 
 				if (_millis() > waiting_start_time + (unsigned long)M600_TIMEOUT * 1000) {
-					lcd_display_message_fullscreen_P(_i("Press the knob to preheat nozzle and continue."));////MSG_PRESS_TO_PREHEAT c=20 r=4
+					lcd_display_message_fullscreen_P(_T(MSG_PRESS_TO_PREHEAT));
 					wait_for_user_state = 1;
 					setTargetHotend(0);
 					st_synchronize();
@@ -10918,7 +11235,7 @@ void M600_wait_for_user(float HotendTempBckp) {
 				delay_keep_alive(4);
 
 				if (lcd_clicked()) {
-					setTargetHotend(HotendTempBckp);
+					setTargetHotend(saved_extruder_temperature);
 					lcd_wait_for_heater();
 					wait_for_user_state = 2;
 				}
@@ -10970,8 +11287,6 @@ void M600_load_filament() {
 	M600_load_filament_movements();
 
 	Sound_MakeCustom(50,1000,false);
-
-	lcd_update_enable(false);
 }
 
 

@@ -980,14 +980,14 @@ prepare_code_for_compiling()
     #FW=$(grep --max-count=1 "\bFW_VERSION\b" $SCRIPT_PATH/Firmware/Configuration.h | sed -e's/  */ /g'|cut -d '"' -f2|sed 's/\.//g')
     if [ -z "$BUILD" ] ; then
         # Find build version in Configuration.h file and use it to generate the hex filename
-        BUILD=$(grep --max-count=1 "\bFW_COMMIT_NR\b" $SCRIPT_PATH/Firmware/Configuration.h | sed -e's/  */ /g'|cut -d ' ' -f3)
+        BUILD=$(grep --max-count=1 "\bFW_COMMITNR\b" $SCRIPT_PATH/Firmware/Configuration.h | sed -e's/  */ /g'|cut -d ' ' -f3)
     else
         # Find and replace build version in Configuration.h file
-        BUILD_ORG=$(grep --max-count=1 "\bFW_COMMIT_NR\b" $SCRIPT_PATH/Firmware/Configuration.h | sed -e's/  */ /g'|cut -d ' ' -f3)
+        BUILD_ORG=$(grep --max-count=1 "\bFW_COMMITNR\b" $SCRIPT_PATH/Firmware/Configuration.h | sed -e's/  */ /g'|cut -d ' ' -f3)
         echo "Original build number: $BUILD_ORG"
         if [ "$BUILD_ORG" != "$BUILD" ]; then
             echo "New build number     : $BUILD"
-            sed -i -- "s/^#define FW_COMMIT_NR.*/#define FW_COMMIT_NR $BUILD/g" $SCRIPT_PATH/Firmware/Configuration.h
+            sed -i -- "s/^#define FW_COMMITNR.*/#define FW_COMMITNR $BUILD/g" $SCRIPT_PATH/Firmware/Configuration.h
         fi
     fi
     # Check if the motherboard is an EINSY and if so only one hex file will generated
@@ -1357,7 +1357,7 @@ cleanup_firmware()
     # Restore files to previous state
     sed -i -- 's/^#define FW_REPOSITORY.*/#define FW_REPOSITORY "Unknown"/g' $SCRIPT_PATH/Firmware/Configuration.h
     if [ ! -z "$BUILD_ORG" ] ; then
-        sed -i -- "s/^#define FW_COMMIT_NR.*/#define FW_COMMIT_NR $BUILD_ORG/g" $SCRIPT_PATH/Firmware/Configuration.h
+        sed -i -- "s/^#define FW_COMMITNR.*/#define FW_COMMITNR $BUILD_ORG/g" $SCRIPT_PATH/Firmware/Configuration.h
     fi
     echo $MULTI_LANGUAGE_CHECK
     #sed -i -- "s/^#define LANG_MODE * /#define LANG_MODE              $MULTI_LANGUAGE_CHECK/g" $SCRIPT_PATH/Firmware/config.h

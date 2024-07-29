@@ -397,6 +397,9 @@ void tmc2130_st_isr()
 	}
 }
 
+void crashdet_use_eeprom_setting() {
+	tmc2130_sg_stop_on_crash = eeprom_read_byte((uint8_t*)EEPROM_CRASH_DET);
+}
 
 bool tmc2130_update_sg()
 {
@@ -577,10 +580,10 @@ void tmc2130_setup_chopper(uint8_t axis, uint8_t mres, const MotorCurrents *curr
 void tmc2130_print_currents()
 {
 	printf_P(_n("tmc2130_print_currents()\n\tH\tR\nX\t%d\t%d\nY\t%d\t%d\nZ\t%d\t%d\nE\t%d\t%d\n"),
-		currents[0].getiHold(), currents[0].getiRun(),
-		currents[1].getiHold(), currents[1].getiRun(),
-		currents[2].getiHold(), currents[2].getiRun(),
-		currents[3].getiHold(), currents[3].getiRun()
+		currents[0].getOriginaliHold(), currents[0].getOriginaliRun(),
+		currents[1].getOriginaliHold(), currents[1].getOriginaliRun(),
+		currents[2].getOriginaliHold(), currents[2].getOriginaliRun(),
+		currents[3].getOriginaliHold(), currents[3].getOriginaliRun()
 	);
 }
 
@@ -1029,8 +1032,8 @@ bool tmc2130_home_calibrate(uint8_t axis)
 	bubblesort_uint8(cnt, cl, val);
 	tmc2130_home_origin[axis] = val[cl-1];
 	printf_P(PSTR("result value: %d\n"), tmc2130_home_origin[axis]);
-	if (axis == X_AXIS) eeprom_update_byte((uint8_t*)EEPROM_TMC2130_HOME_X_ORIGIN, tmc2130_home_origin[X_AXIS]);
-	else if (axis == Y_AXIS) eeprom_update_byte((uint8_t*)EEPROM_TMC2130_HOME_Y_ORIGIN, tmc2130_home_origin[Y_AXIS]);
+	if (axis == X_AXIS) eeprom_update_byte_notify((uint8_t*)EEPROM_TMC2130_HOME_X_ORIGIN, tmc2130_home_origin[X_AXIS]);
+	else if (axis == Y_AXIS) eeprom_update_byte_notify((uint8_t*)EEPROM_TMC2130_HOME_Y_ORIGIN, tmc2130_home_origin[Y_AXIS]);
 	return true;
 }
 

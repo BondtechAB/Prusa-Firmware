@@ -5,6 +5,7 @@
 #include "messages.h"
 #include "temperature.h"
 #include "stepper.h"
+#include "stopwatch.h"
 
 #define FAN_CHECK_PERIOD 5000 //5s
 #define FAN_CHECK_DURATION 100 //100ms
@@ -93,7 +94,7 @@ void fanSpeedError(unsigned char _fan) {
 
     if (printJobOngoing()) {
         // A print is ongoing, pause the print normally
-        if(!isPrintPaused) {
+        if(!printingIsPaused()) {
             if (usb_timer.running())
                 lcd_pause_usb_print();
             else
@@ -237,7 +238,7 @@ bool extruder_altfan_detect()
 void altfanOverride_toggle()
 {
     altfanStatus.altfanOverride = !altfanStatus.altfanOverride;
-    eeprom_update_byte((uint8_t *)EEPROM_ALTFAN_OVERRIDE, altfanStatus.altfanOverride);
+    eeprom_update_byte_notify((uint8_t *)EEPROM_ALTFAN_OVERRIDE, altfanStatus.altfanOverride);
 }
 
 bool altfanOverride_get()

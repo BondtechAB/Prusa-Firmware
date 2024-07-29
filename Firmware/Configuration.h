@@ -19,10 +19,10 @@ extern const char _sPrinterMmuName[] PROGMEM;
 // Otherwise the repository information takes precedence.
 #ifndef CMAKE_CONTROL
 #define FW_MAJOR 3
-#define FW_MINOR 13
-#define FW_REVISION 3
-#define FW_COMMITNR 7864
-//#define FW_FLAVOR RC      //uncomment if DEV, ALPHA, BETA or RC
+#define FW_MINOR 14
+#define FW_REVISION 0
+#define FW_COMMITNR 8066
+//#define FW_FLAVOR BETA      //uncomment if DEV, ALPHA, BETA or RC
 //#define FW_FLAVERSION 1     //uncomment if FW_FLAVOR is defined and versioning is needed. Limited to max 8.
 #endif
 
@@ -34,7 +34,7 @@ extern const char _sPrinterMmuName[] PROGMEM;
     // Construct the TWEAK value as it is expected from the enum.
     #define FW_TWEAK (CONCAT(FIRMWARE_REVISION_,FW_FLAVOR) + FW_FLAVERSION)
     #define FW_VERSION STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_FLAVOR) "" STR(FW_FLAVERSION)
-    #define FW_VERSION_FULL STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_FLAVOR) "" STR(FW_FLAVERSION) "-" STR(FW_COMMITNR)
+    #define FW_VERSION_FULL STR(FW_MAJOR) "." STR(FW_MINOR) "." STR(FW_REVISION) "-" STR(FW_FLAVOR) "" STR(FW_FLAVERSION) "+" STR(FW_COMMITNR)
 #endif
 
 // The full version string and repository source are set via cmake
@@ -42,9 +42,6 @@ extern const char _sPrinterMmuName[] PROGMEM;
 #define FW_COMMIT_HASH_LENGTH 1
 #define FW_COMMIT_HASH "0"
 #define FW_REPOSITORY "Unknown"
-#ifndef FW_VERSION_FULL
-#define FW_VERSION_FULL FW_VERSION
-#endif //END FW_VERSION_FULL
 #endif
 
 // G-code language level
@@ -73,7 +70,7 @@ extern const char _sPrinterMmuName[] PROGMEM;
 // build by the user have been successfully uploaded into firmware.
 
 #define STRING_VERSION_CONFIG_H SOURCE_DATE_EPOCH " " SOURCE_TIME_EPOCH // build date and time
-#define STRING_CONFIG_H_AUTHOR "(none, default config)" // Who made the changes.
+#define STRING_CONFIG_H_AUTHOR FW_REPOSITORY // Who made the changes.
 
 // SERIAL_PORT selects which serial port should be used for communication with the host.
 // This allows the connection of wireless adapters (for instance) to non-default port pins.

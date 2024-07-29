@@ -8,6 +8,7 @@
 #include "ultralcd.h"
 #include "Filament_sensor.h"
 #include "language.h"
+#include "stopwatch.h"
 
 #ifdef PRUSA_FARM
 uint8_t farm_mode = 0;
@@ -92,8 +93,8 @@ static void prusa_stat_printinfo() {
     SERIAL_ECHOPGM("][FNM:");
     SERIAL_ECHO(card.longFilename[0] ? card.longFilename : card.filename);
     SERIAL_ECHOPGM("][TIM:");
-    if (starttime != 0) {
-        SERIAL_ECHO((_millis() - starttime) / 1000);
+    if (print_job_timer.isRunning()) {
+        SERIAL_ECHO(print_job_timer.duration());
     }
     else {
         SERIAL_ECHO(0);
@@ -163,9 +164,7 @@ static void trace() {
 }
 
 void serial_read_stream() {
-
-    setTargetHotend(0);
-    setTargetBed(0);
+    disable_heater();
 
     lcd_clear();
     lcd_puts_P(PSTR(" Upload in progress"));
@@ -239,7 +238,7 @@ void prusa_statistics(uint8_t _message) {
         if (busy_state == PAUSED_FOR_USER) {
             prusa_statistics_case0(15);
         }
-        else if (isPrintPaused) {
+        else if (printingIsPaused()) {
             prusa_statistics_case0(14);
         }
         else if (IS_SD_PRINTING || (eFilamentAction != FilamentAction::None)) {
@@ -404,7 +403,7 @@ void farm_mode_init() {
         fsensor.setAutoLoadEnabled(false);
 #endif //FILAMENT_SENSOR
         // ~ FanCheck -> on
-        eeprom_update_byte((uint8_t*)EEPROM_FAN_CHECK_ENABLED, true);
+        eeprom_update_byte_notify((uint8_t*)EEPROM_FAN_CHECK_ENABLED, true);
     }
 }
 
@@ -448,9 +447,9 @@ bool farm_prusa_code_seen() {
 
 void farm_gcode_g98() {
     farm_mode = 1;
-    eeprom_update_byte((unsigned char *)EEPROM_FARM_MODE, farm_mode);
+    eeprom_update_byte_notify((unsigned char *)EEPROM_FARM_MODE, farm_mode);
     SilentModeMenu = SILENT_MODE_OFF;
-    eeprom_update_byte((unsigned char *)EEPROM_SILENT, SilentModeMenu);
+    eeprom_update_byte_notify((unsigned char *)EEPROM_SILENT, SilentModeMenu);
     fCheckModeInit(); // alternatively invoke printer reset
 }
 
@@ -462,7 +461,7 @@ void farm_gcode_g99() {
 
 void farm_disable() {
     farm_mode = false;
-    eeprom_update_byte((uint8_t*)EEPROM_FARM_MODE, farm_mode);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_FARM_MODE, farm_mode);
 }
 
 #else //PRUSA_FARM

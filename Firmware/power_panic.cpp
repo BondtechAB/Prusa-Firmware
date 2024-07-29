@@ -41,10 +41,7 @@ void uvlo_() {
     unsigned long time_start = _millis();
 
     // True if a print is already saved to RAM
-    bool sd_print_saved_in_ram = saved_printing && (saved_printing_type == PRINTING_TYPE_SD);
-
-    // Flag to decide whether or not to set EEPROM_UVLO bit
-    bool sd_print = card.sdprinting || sd_print_saved_in_ram;
+    const bool print_saved_in_ram = saved_printing && (saved_printing_type != PowerPanic::PRINT_TYPE_NONE);
     const bool pos_invalid = mesh_bed_leveling_flag || homing_flag;
 
     // Conserve as much power as soon as possible
@@ -69,7 +66,7 @@ void uvlo_() {
     tmc2130_setup_chopper(E_AXIS, tmc2130_mres[E_AXIS]);
 #endif //TMC2130
 
-    if (!sd_print_saved_in_ram && !isPartialBackupAvailable)
+    if (!print_saved_in_ram && !isPartialBackupAvailable)
     {
         saved_bed_temperature = target_temperature_bed;
         saved_extruder_temperature = target_temperature[active_extruder];
@@ -78,11 +75,10 @@ void uvlo_() {
     }
 
     // Stop all heaters before continuing
-    setTargetHotend(0);
-    setTargetBed(0);
+    disable_heater();
 
     // Fetch data not included in a partial back-up
-    if (!sd_print_saved_in_ram) {
+    if (!print_saved_in_ram) {
         // Calculate the file position, from which to resume this print.
         save_print_file_state();
 
@@ -103,7 +99,7 @@ void uvlo_() {
 
     // When there is no position already saved, then we must grab whatever the current position is.
     // This is most likely a position where the printer is in the middle of a G-code move
-    if (!sd_print_saved_in_ram && !isPartialBackupAvailable)
+    if (!print_saved_in_ram && !isPartialBackupAvailable)
     {
         memcpy(saved_pos, current_position, sizeof(saved_pos));
         if (pos_invalid) saved_pos[X_AXIS] = X_COORD_INVALID;
@@ -117,11 +113,11 @@ void uvlo_() {
         // mesh bed leveling offset value.
         logical_z -= mbl.get_z(saved_pos[X_AXIS], saved_pos[Y_AXIS]);
     }
-    eeprom_update_float((float*)EEPROM_UVLO_CURRENT_POSITION_Z, logical_z);
+    eeprom_update_float_notify((float*)EEPROM_UVLO_CURRENT_POSITION_Z, logical_z);
 
     // Store the print E position before we lose track
-    eeprom_update_float((float*)(EEPROM_UVLO_CURRENT_POSITION_E), saved_pos[E_AXIS]);
-    eeprom_update_byte((uint8_t*)EEPROM_UVLO_E_ABS, !saved_extruder_relative_mode);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_CURRENT_POSITION_E), saved_pos[E_AXIS]);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_E_ABS, !saved_extruder_relative_mode);
 
     // Clean the input command queue, inhibit serial processing using saved_printing
     cmdqueue_reset();
@@ -153,7 +149,7 @@ void uvlo_() {
     poweroff_z();
 
     // Write the file position.
-    eeprom_update_dword((uint32_t*)(EEPROM_FILE_POSITION), saved_sdpos);
+    eeprom_update_dword_notify((uint32_t*)(EEPROM_FILE_POSITION), saved_sdpos);
 
     // Store the mesh bed leveling offsets. This is 2*7*7=98 bytes, which takes 98*3.4us=333us in worst case.
     for (uint8_t mesh_point = 0; mesh_point < MESH_NUM_X_POINTS * MESH_NUM_Y_POINTS; ++ mesh_point)
@@ -162,43 +158,44 @@ void uvlo_() {
         uint8_t iy = mesh_point / MESH_NUM_X_POINTS;
         // Scale the z value to 1u resolution.
         int16_t v = mbl_was_active ? int16_t(floor(mbl.z_values[iy][ix] * 1000.f + 0.5f)) : 0;
-        eeprom_update_word((uint16_t*)(EEPROM_UVLO_MESH_BED_LEVELING_FULL +2*mesh_point), *reinterpret_cast<uint16_t*>(&v));
+        eeprom_update_word_notify((uint16_t*)(EEPROM_UVLO_MESH_BED_LEVELING_FULL +2*mesh_point), *reinterpret_cast<uint16_t*>(&v));
     }
 
     // Write the _final_ Z position
-    eeprom_update_float((float*)EEPROM_UVLO_TINY_CURRENT_POSITION_Z, current_position[Z_AXIS]);
+    eeprom_update_float_notify((float*)EEPROM_UVLO_TINY_CURRENT_POSITION_Z, current_position[Z_AXIS]);
 
     // Store the current position.
-    eeprom_update_float((float*)(EEPROM_UVLO_CURRENT_POSITION + 0), saved_pos[X_AXIS]);
-    eeprom_update_float((float*)(EEPROM_UVLO_CURRENT_POSITION + 4), saved_pos[Y_AXIS]);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_CURRENT_POSITION + 0), saved_pos[X_AXIS]);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_CURRENT_POSITION + 4), saved_pos[Y_AXIS]);
 
     // Store the current feed rate, temperatures, fan speed and extruder multipliers (flow rates)
-    eeprom_update_word((uint16_t*)EEPROM_UVLO_FEEDRATE, saved_feedrate2);
-    eeprom_update_word((uint16_t*)EEPROM_UVLO_FEEDMULTIPLY, feedmultiply);
-    eeprom_update_word((uint16_t*)EEPROM_UVLO_TARGET_HOTEND, saved_extruder_temperature);
-    eeprom_update_byte((uint8_t*)EEPROM_UVLO_TARGET_BED, saved_bed_temperature);
-    eeprom_update_byte((uint8_t*)EEPROM_UVLO_FAN_SPEED, saved_fan_speed);
-    eeprom_update_float((float*)(EEPROM_EXTRUDER_MULTIPLIER_0), extruder_multiplier[0]);
-    eeprom_update_word((uint16_t*)(EEPROM_EXTRUDEMULTIPLY), (uint16_t)extrudemultiply);
+    eeprom_update_word_notify((uint16_t*)EEPROM_UVLO_FEEDRATE, saved_feedrate2);
+    eeprom_update_word_notify((uint16_t*)EEPROM_UVLO_FEEDMULTIPLY, feedmultiply);
+    eeprom_update_word_notify((uint16_t*)EEPROM_UVLO_TARGET_HOTEND, saved_extruder_temperature);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_TARGET_BED, saved_bed_temperature);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_FAN_SPEED, saved_fan_speed);
+    eeprom_update_float_notify((float*)(EEPROM_EXTRUDER_MULTIPLIER_0), extruder_multiplier[0]);
+    eeprom_update_word_notify((uint16_t*)(EEPROM_EXTRUDEMULTIPLY), (uint16_t)extrudemultiply);
 
-    eeprom_update_float((float*)(EEPROM_UVLO_ACCELL), cs.acceleration);
-    eeprom_update_float((float*)(EEPROM_UVLO_RETRACT_ACCELL), cs.retract_acceleration);
-    eeprom_update_float((float*)(EEPROM_UVLO_TRAVEL_ACCELL), cs.travel_acceleration);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_ACCELL), cs.acceleration);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_RETRACT_ACCELL), cs.retract_acceleration);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_TRAVEL_ACCELL), cs.travel_acceleration);
 
     // Store the saved target
-    eeprom_update_block(saved_start_position, (float *)EEPROM_UVLO_SAVED_START_POSITION, sizeof(saved_start_position));
+    eeprom_update_block_notify(saved_start_position, (float *)EEPROM_UVLO_SAVED_START_POSITION, sizeof(saved_start_position));
 
-    eeprom_update_word((uint16_t*)EEPROM_UVLO_SAVED_SEGMENT_IDX, saved_segment_idx);
+    eeprom_update_word_notify((uint16_t*)EEPROM_UVLO_SAVED_SEGMENT_IDX, saved_segment_idx);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_PRINT_TYPE, saved_printing_type);
 
 #ifdef LIN_ADVANCE
-    eeprom_update_float((float*)(EEPROM_UVLO_LA_K), extruder_advance_K);
+    eeprom_update_float_notify((float*)(EEPROM_UVLO_LA_K), extruder_advance_K);
 #endif
 
     // Finally store the "power outage" flag.
-    // Note: Recovering a print from EEPROM currently assumes the user
-    // is printing from an SD card, this is why this EEPROM byte is only set
-    // when SD card print is detected
-    if(sd_print) eeprom_update_byte((uint8_t*)EEPROM_UVLO, PENDING_RECOVERY);
+    if (did_pause_print) {
+        eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_Z_LIFTED, 1);
+    }
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO, PowerPanic::PENDING_RECOVERY);
 
     // Increment power failure counter
     eeprom_increment_byte((uint8_t*)EEPROM_POWER_COUNT);
@@ -233,8 +230,7 @@ static void uvlo_tiny() {
 #endif //TMC2130
 
     // Stop all heaters
-    setTargetHotend(0);
-    setTargetBed(0);
+    disable_heater();
 
     // When power is interrupted on the _first_ recovery an attempt can be made to raise the
     // extruder, causing the Z position to change. Similarly, when recovering, the Z position is
@@ -267,11 +263,11 @@ static void uvlo_tiny() {
         poweroff_z();
 
         // Update Z position
-        eeprom_update_float((float*)(EEPROM_UVLO_TINY_CURRENT_POSITION_Z), current_position[Z_AXIS]);
+        eeprom_update_float_notify((float*)(EEPROM_UVLO_TINY_CURRENT_POSITION_Z), current_position[Z_AXIS]);
     }
 
     // Update the the "power outage" flag.
-    eeprom_update_byte((uint8_t*)EEPROM_UVLO, PENDING_RECOVERY_RETRY);
+    eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO, PowerPanic::PENDING_RECOVERY_RETRY);
 
     // Increment power failure counter
     eeprom_increment_byte((uint8_t*)EEPROM_POWER_COUNT);
@@ -293,7 +289,7 @@ void setup_uvlo_interrupt() {
     EIMSK |= (1 << 4);
 
     // check if power was lost before we armed the interrupt
-    if(!(PINE & (1 << 4)) && eeprom_read_byte((uint8_t*)EEPROM_UVLO) != NO_PENDING_RECOVERY)
+    if(!(PINE & (1 << 4)) && printer_recovering())
     {
         SERIAL_ECHOLNRPGM(MSG_INT4);
         uvlo_drain_reset();
@@ -303,7 +299,7 @@ void setup_uvlo_interrupt() {
 ISR(INT4_vect) {
     EIMSK &= ~(1 << 4); //disable INT4 interrupt to make sure that this code will be executed just once
     SERIAL_ECHOLNRPGM(MSG_INT4);
-    if (eeprom_read_byte((uint8_t*)EEPROM_UVLO) == NO_PENDING_RECOVERY)
+    if (eeprom_read_byte((uint8_t*)EEPROM_UVLO) == PowerPanic::NO_PENDING_RECOVERY)
     {
         if(printer_active()) {
             uvlo_();
@@ -317,18 +313,22 @@ ISR(INT4_vect) {
 }
 
 void recover_print(uint8_t automatic) {
-    lcd_update_enable(true);
-    lcd_update(2);
-    lcd_setstatuspgm(_i("Recovering print"));////MSG_RECOVERING_PRINT c=20
+    lcd_setstatuspgm(_T(MSG_RECOVERING_PRINT));
 
     // Recover position, temperatures and extrude_multipliers
     bool mbl_was_active = recover_machine_state_after_power_panic();
 
-    // Lift the print head 25mm, first to avoid collisions with oozed material with the print,
-    // and second also so one may remove the excess priming material.
-    if(eeprom_read_byte((uint8_t*)EEPROM_UVLO) == PENDING_RECOVERY)
-    {
-        enquecommandf_P(PSTR("G1 Z%.3f F800"), current_position[Z_AXIS] + 25);
+    // Undo PP Z Lift by setting current Z pos to + Z_PAUSE_LIFT
+    // With first PP or Pause + PP the Z has been already lift.
+    // After a reboot the printer doesn't know the Z height and we have to set its previous value
+    if(eeprom_read_byte((uint8_t*)EEPROM_UVLO_Z_LIFTED) == 1 ) {
+        current_position[Z_AXIS] += Z_PAUSE_LIFT;
+    }
+
+    // Lift the print head ONCE plus Z_PAUSE_LIFT first to avoid collisions with oozed material with the print,
+    if(eeprom_read_byte((uint8_t*)EEPROM_UVLO_Z_LIFTED) == 0) {
+        enquecommandf_P(PSTR("G1 Z%.3f F800"), current_position[Z_AXIS] + Z_PAUSE_LIFT);
+        eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_Z_LIFTED, 1);
     }
 
     // Home X and Y axes. Homing just X and Y shall not touch the babystep and the world2machine
@@ -337,7 +337,10 @@ void recover_print(uint8_t automatic) {
     // Set the target bed and nozzle temperatures and wait.
     enquecommandf_P(PSTR("M104 S%d"), target_temperature[active_extruder]);
     enquecommandf_P(PSTR("M140 S%d"), target_temperature_bed);
-    enquecommandf_P(PSTR("M109 S%d"), target_temperature[active_extruder]);
+    //No need to wait for hotend heatup while host printing, as print will pause and wait for host.
+    if (eeprom_read_byte((uint8_t*)EEPROM_UVLO_PRINT_TYPE) == PowerPanic::PRINT_TYPE_SD) {
+        enquecommandf_P(PSTR("M109 S%d"), target_temperature[active_extruder]);
+    }
     enquecommand_P(MSG_M83); //E axis relative mode
 
     // If not automatically recoreverd (long power loss)
@@ -426,9 +429,6 @@ void restore_print_from_eeprom(bool mbl_was_active) {
     int feedrate_rec;
     int feedmultiply_rec;
     uint8_t fan_speed_rec;
-    char filename[FILENAME_LENGTH];
-    uint8_t depth = 0;
-    char dir_name[9];
 
     fan_speed_rec = eeprom_read_byte((uint8_t*)EEPROM_UVLO_FAN_SPEED);
     feedrate_rec = eeprom_read_word((uint16_t*)EEPROM_UVLO_FEEDRATE);
@@ -438,29 +438,10 @@ void restore_print_from_eeprom(bool mbl_was_active) {
     SERIAL_ECHOPGM(", feedmultiply:");
     MYSERIAL.println(feedmultiply_rec);
 
-    depth = eeprom_read_byte((uint8_t*)EEPROM_DIR_DEPTH);
-
-    MYSERIAL.println(int(depth));
-    for (uint8_t i = 0; i < depth; i++) {
-        for (uint8_t j = 0; j < 8; j++) {
-            dir_name[j] = eeprom_read_byte((uint8_t*)EEPROM_DIRS + j + 8 * i);
-        }
-        dir_name[8] = '\0';
-        MYSERIAL.println(dir_name);
-        card.chdir(dir_name, false);
+    if (saved_printing_type == PowerPanic::PRINT_TYPE_SD)
+    { // M23
+        restore_file_from_sd();
     }
-
-    for (uint8_t i = 0; i < 8; i++) {
-        filename[i] = eeprom_read_byte((uint8_t*)EEPROM_FILENAME + i);
-    }
-    filename[8] = '\0';
-
-    MYSERIAL.print(filename);
-    strcat_P(filename, PSTR(".gco"));
-    enquecommandf_P(MSG_M23, filename);
-    uint32_t position = eeprom_read_dword((uint32_t*)(EEPROM_FILE_POSITION));
-    SERIAL_ECHOPGM("Position read from eeprom:");
-    MYSERIAL.println(position);
 
     // Move to the XY print position in logical coordinates, where the print has been killed, but
     // without shifting Z along the way. This requires performing the move without mbl.
@@ -497,9 +478,21 @@ void restore_print_from_eeprom(bool mbl_was_active) {
     // Set the fan speed saved at the power panic.
     enquecommandf_P(PSTR("M106 S%u"), fan_speed_rec);
 
-    // Set a position in the file.
-    enquecommandf_P(PSTR("M26 S%lu"), position);
+    // SD: Position in file, USB: g-code line number
+    uint32_t position = eeprom_read_dword((uint32_t*)(EEPROM_FILE_POSITION));
+    if (saved_printing_type == PowerPanic::PRINT_TYPE_SD)
+    {
+        // Set a position in the file.
+        enquecommandf_P(PSTR("M26 S%lu"), position);
+    }
+    else if (saved_printing_type == PowerPanic::PRINT_TYPE_HOST)
+    {
+        // Set line number
+        enquecommandf_P(PSTR("M110 N%lu"), position);
+    }
+
     enquecommand_P(PSTR("G4 S0"));
     enquecommand_P(PSTR("PRUSA uvlo"));
 }
+
 #endif //UVLO_SUPPORT

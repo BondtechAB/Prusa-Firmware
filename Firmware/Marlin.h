@@ -22,7 +22,7 @@
 #include "pins.h"
 #include "Timer.h"
 #include "mmu2.h"
-extern uint8_t mbl_z_probe_nr;
+#include "printer_state.h"
 
 #ifndef AT90USB
 #define  HardwareSerial_h // trick to disable the standard HWserial
@@ -65,16 +65,6 @@ extern uint8_t mbl_z_probe_nr;
 #endif
 
 #include "lcd.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern FILE _uartout;
-#ifdef __cplusplus
-}
-#endif
-
-#define uartout (&_uartout)
 
 #define SERIAL_PROTOCOL(x) (MYSERIAL.print(x))
 #define SERIAL_PROTOCOL_F(x,y) (MYSERIAL.print(x,y))
@@ -207,6 +197,7 @@ void kill(const char *full_screen_message = NULL);
 void finishAndDisableSteppers();
 
 void UnconditionalStop();                   // Stop heaters, motion and clear current print status
+void ConditionalStop();                     // Similar to UnconditionalStop, but doesn't disable heaters
 void ThermalStop(bool allow_pause = false); // Emergency stop used by overtemp functions which allows
                                             // recovery (with pause=true)
 bool IsStopped();                           // Returns true if the print has been stopped
@@ -236,7 +227,7 @@ enum class HeatingStatus : uint8_t
 extern HeatingStatus heating_status;
 
 extern bool fans_check_enabled;
-extern float homing_feedrate[];
+constexpr float homing_feedrate[] = HOMING_FEEDRATE;
 extern uint8_t axis_relative_modes;
 extern float feedrate;
 extern int feedmultiply;
@@ -274,18 +265,13 @@ extern float retract_length_swap;
 extern float retract_recover_length_swap;
 #endif
 
-extern uint32_t starttime; // milliseconds
-extern uint32_t pause_time; // milliseconds
-extern uint32_t start_pause_print; // milliseconds
 extern ShortTimer usb_timer;
 extern bool processing_tcode;
 extern bool homing_flag;
 extern uint32_t total_filament_used; // mm/100 or 10um
 
 /// @brief Save print statistics to EEPROM
-/// @param _total_filament_used has unit mm/100 or 10um
-/// @param _total_print_time has unit minutes, for example 123 minutes
-void save_statistics(uint32_t _total_filament_used, uint32_t _total_print_time);
+void save_statistics();
 
 extern int fan_edge_counter[2];
 extern int fan_speed[2];
@@ -295,14 +281,12 @@ extern int fan_speed[2];
 #define active_extruder 0
 
 extern bool mesh_bed_leveling_flag;
+extern bool did_pause_print;
 
 // save/restore printing
 extern bool saved_printing;
 extern uint32_t saved_sdpos;
 extern uint8_t saved_printing_type;
-#define PRINTING_TYPE_SD 0
-#define PRINTING_TYPE_USB 1
-#define PRINTING_TYPE_NONE 2
 
 extern uint16_t saved_extruder_temperature; //!< Active extruder temperature
 extern uint8_t saved_bed_temperature; //!< Bed temperature
@@ -329,7 +313,17 @@ extern LongTimer safetyTimer;
 // the print is paused, that still counts as a "running" print.
 bool printJobOngoing();
 
+// Make debug_printer_states available everywhere
+#ifdef DEBUG_PRINTER_STATES
+void debug_printer_states();
+#endif //DEBUG_PRINTER_STATES
+
+// Printing is paused according to SD or host indicators
+bool printingIsPaused();
+
 bool printer_active();
+
+bool printer_recovering();
 
 //! Beware - mcode_in_progress is set as soon as the command gets really processed,
 //! which is not the same as posting the M600 command into the command queue
@@ -393,8 +387,13 @@ void save_print_file_state();
 void restore_print_file_state();
 void save_planner_global_state();
 void refresh_print_state_in_ram();
+
+/// Updates the feedrate multiplier when a print is saved such that
+/// it is not overwritten when the print is later resumed
+void refresh_saved_feedrate_multiplier_in_ram();
 void clear_print_state_in_ram();
 extern void stop_and_save_print_to_ram(float z_move, float e_move);
+void restore_file_from_sd();
 void restore_extruder_temperature_from_ram();
 extern void restore_print_from_ram_and_continue(float e_move);
 extern void cancel_saved_printing();
@@ -460,8 +459,8 @@ void gcode_M701(float fastLoadLength, uint8_t mmuSlotIndex);
 
 void M600_load_filament();
 void M600_load_filament_movements();
-void M600_wait_for_user(float HotendTempBckp);
-void M600_check_state(float nozzle_temp);
+void M600_wait_for_user();
+bool M600_check_state_and_repeat();
 void load_filament_final_feed();
 void marlin_wait_for_click();
 float raise_z(float delta);
@@ -471,5 +470,4 @@ extern "C" void softReset();
 void stack_error();
 
 extern uint32_t IP_address;
-
 #endif
