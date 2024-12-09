@@ -22,7 +22,7 @@ extern const char _sPrinterMmuName[] PROGMEM;
 #define FW_MAJOR 3
 #define FW_MINOR 14
 #define FW_REVISION 1
-#define FW_COMMITNR 8237
+#define FW_COMMITNR 8552
 //#define FW_FLAVOR RC      //uncomment if DEV, ALPHA, BETA or RC
 //#define FW_FLAVERSION 1     //uncomment if FW_FLAVOR is defined and versioning is needed. Limited to max 8.
 #endif
