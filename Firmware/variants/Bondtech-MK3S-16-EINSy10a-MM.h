@@ -69,7 +69,7 @@
 #define Y_MIN_POS -4 //orig -4
 #define Z_MAX_POS 210
 #define Z_MIN_POS 0.15
-#define Z_MAX_POS_XYZ_CALIBRATION_CORRECTION 9
+#define Z_MAX_POS_XYZ_CALIBRATION_CORRECTION 2
 
 // Canceled home position
 #define X_CANCEL_POS 50

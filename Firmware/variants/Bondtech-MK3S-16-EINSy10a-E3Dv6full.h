@@ -70,7 +70,7 @@
 #define Z_MIN_POS 0.15
 
 // Z height correction value
-#define Z_MAX_POS_XYZ_CALIBRATION_CORRECTION 9
+#define Z_MAX_POS_XYZ_CALIBRATION_CORRECTION 2
 
 // Canceled home position
 #define X_CANCEL_POS 50
