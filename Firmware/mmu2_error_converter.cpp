@@ -29,17 +29,17 @@ static constexpr uint8_t FindErrorIndex(uint16_t pec) {
     return (i != errorCodesEnd) ? (i-errorCodes) : (errorCodesSize - 1);
 }
 
-// check that the searching algoritm works
-static_assert( FindErrorIndex(ERR_MECHANICAL_FINDA_DIDNT_TRIGGER) == 0);
-static_assert( FindErrorIndex(ERR_MECHANICAL_FINDA_FILAMENT_STUCK) == 1);
-static_assert( FindErrorIndex(ERR_MECHANICAL_FSENSOR_DIDNT_TRIGGER) == 2);
-static_assert( FindErrorIndex(ERR_MECHANICAL_FSENSOR_FILAMENT_STUCK) == 3);
+// check that the searching algorithm works
+static_assert(FindErrorIndex(ERR_MECHANICAL_FINDA_DIDNT_TRIGGER) == 0);
+static_assert(FindErrorIndex(ERR_MECHANICAL_FINDA_FILAMENT_STUCK) == 1);
+static_assert(FindErrorIndex(ERR_MECHANICAL_FSENSOR_DIDNT_TRIGGER) == 2);
+static_assert(FindErrorIndex(ERR_MECHANICAL_FSENSOR_FILAMENT_STUCK) == 3);
 
-constexpr ErrorCode operator&(ErrorCode a, ErrorCode b){
+constexpr ErrorCode operator&(ErrorCode a, ErrorCode b) {
     return (ErrorCode)((uint16_t)a & (uint16_t)b);
 }
 
-constexpr bool ContainsBit(ErrorCode ec, ErrorCode mask){
+constexpr bool ContainsBit(ErrorCode ec, ErrorCode mask) {
     return (uint16_t)ec & (uint16_t)mask;
 }
 
@@ -67,17 +67,17 @@ uint8_t PrusaErrorCodeIndex(ErrorCode ec) {
     case ErrorCode::STALLED_PULLEY:
     case ErrorCode::MOVE_PULLEY_FAILED:
         return FindErrorIndex(ERR_MECHANICAL_PULLEY_CANNOT_MOVE);
-        
+
     case ErrorCode::HOMING_SELECTOR_FAILED:
         return FindErrorIndex(ERR_MECHANICAL_SELECTOR_CANNOT_HOME);
     case ErrorCode::MOVE_SELECTOR_FAILED:
         return FindErrorIndex(ERR_MECHANICAL_SELECTOR_CANNOT_MOVE);
-        
+
     case ErrorCode::HOMING_IDLER_FAILED:
         return FindErrorIndex(ERR_MECHANICAL_IDLER_CANNOT_HOME);
     case ErrorCode::MOVE_IDLER_FAILED:
         return FindErrorIndex(ERR_MECHANICAL_IDLER_CANNOT_MOVE);
-        
+
     case ErrorCode::MMU_NOT_RESPONDING:
         return FindErrorIndex(ERR_CONNECT_MMU_NOT_RESPONDING);
     case ErrorCode::PROTOCOL_ERROR:
@@ -96,93 +96,115 @@ uint8_t PrusaErrorCodeIndex(ErrorCode ec) {
         return FindErrorIndex(ERR_SYSTEM_UNLOAD_MANUALLY);
     case ErrorCode::MCU_UNDERVOLTAGE_VCC:
         return FindErrorIndex(ERR_ELECTRICAL_MMU_MCU_ERROR);
-    default: break;
+    default:
+        break;
     }
-    
+
     // Electrical issues which can be detected somehow.
     // Need to be placed before TMC-related errors in order to process couples of error bits between single ones
     // and to keep the code size down.
     if (ContainsBit(ec, ErrorCode::TMC_PULLEY_BIT)) {
-        if ((ec & ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) == ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION)
+        if ((ec & ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) == ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) {
             return FindErrorIndex(ERR_ELECTRICAL_MMU_PULLEY_SELFTEST_FAILED);
+        }
     } else if (ContainsBit(ec, ErrorCode::TMC_SELECTOR_BIT)) {
-        if ((ec & ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) == ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION)
+        if ((ec & ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) == ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) {
             return FindErrorIndex(ERR_ELECTRICAL_MMU_SELECTOR_SELFTEST_FAILED);
+        }
     } else if (ContainsBit(ec, ErrorCode::TMC_IDLER_BIT)) {
-        if ((ec & ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) == ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION)
+        if ((ec & ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) == ErrorCode::MMU_SOLDERING_NEEDS_ATTENTION) {
             return FindErrorIndex(ERR_ELECTRICAL_MMU_IDLER_SELFTEST_FAILED);
+        }
     }
 
     // TMC-related errors - multiple of these can occur at once
     // - in such a case we report the first which gets found/converted into Prusa-Error-Codes (usually the fact, that one TMC has an issue is serious enough)
     // By carefully ordering the checks here we can prioritize the errors being reported to the user.
     if (ContainsBit(ec, ErrorCode::TMC_PULLEY_BIT)) {
-        if (ContainsBit(ec, ErrorCode::TMC_IOIN_MISMATCH))
+        if (ContainsBit(ec, ErrorCode::TMC_IOIN_MISMATCH)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_PULLEY_DRIVER_ERROR);
-        if (ContainsBit(ec, ErrorCode::TMC_RESET))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_RESET)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_PULLEY_DRIVER_RESET);
-        if (ContainsBit(ec, ErrorCode::TMC_UNDERVOLTAGE_ON_CHARGE_PUMP))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_UNDERVOLTAGE_ON_CHARGE_PUMP)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_PULLEY_UNDERVOLTAGE_ERROR);
-        if (ContainsBit(ec, ErrorCode::TMC_SHORT_TO_GROUND))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_SHORT_TO_GROUND)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_PULLEY_DRIVER_SHORTED);
-        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_WARN))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_WARN)) {
             return FindErrorIndex(ERR_TEMPERATURE_WARNING_TMC_PULLEY_TOO_HOT);
-        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_ERROR))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_ERROR)) {
             return FindErrorIndex(ERR_TEMPERATURE_TMC_PULLEY_OVERHEAT_ERROR);
+        }
     } else if (ContainsBit(ec, ErrorCode::TMC_SELECTOR_BIT)) {
-        if (ContainsBit(ec, ErrorCode::TMC_IOIN_MISMATCH))
+        if (ContainsBit(ec, ErrorCode::TMC_IOIN_MISMATCH)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_SELECTOR_DRIVER_ERROR);
-        if (ContainsBit(ec, ErrorCode::TMC_RESET))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_RESET)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_SELECTOR_DRIVER_RESET);
-        if (ContainsBit(ec, ErrorCode::TMC_UNDERVOLTAGE_ON_CHARGE_PUMP))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_UNDERVOLTAGE_ON_CHARGE_PUMP)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_SELECTOR_UNDERVOLTAGE_ERROR);
-        if (ContainsBit(ec, ErrorCode::TMC_SHORT_TO_GROUND))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_SHORT_TO_GROUND)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_SELECTOR_DRIVER_SHORTED);
-        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_WARN))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_WARN)) {
             return FindErrorIndex(ERR_TEMPERATURE_WARNING_TMC_SELECTOR_TOO_HOT);
-        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_ERROR))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_ERROR)) {
             return FindErrorIndex(ERR_TEMPERATURE_TMC_SELECTOR_OVERHEAT_ERROR);
+        }
     } else if (ContainsBit(ec, ErrorCode::TMC_IDLER_BIT)) {
-        if (ContainsBit(ec, ErrorCode::TMC_IOIN_MISMATCH))
+        if (ContainsBit(ec, ErrorCode::TMC_IOIN_MISMATCH)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_IDLER_DRIVER_ERROR);
-        if (ContainsBit(ec, ErrorCode::TMC_RESET))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_RESET)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_IDLER_DRIVER_RESET);
-        if (ContainsBit(ec, ErrorCode::TMC_UNDERVOLTAGE_ON_CHARGE_PUMP))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_UNDERVOLTAGE_ON_CHARGE_PUMP)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_IDLER_UNDERVOLTAGE_ERROR);
-        if (ContainsBit(ec, ErrorCode::TMC_SHORT_TO_GROUND))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_SHORT_TO_GROUND)) {
             return FindErrorIndex(ERR_ELECTRICAL_TMC_IDLER_DRIVER_SHORTED);
-        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_WARN))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_WARN)) {
             return FindErrorIndex(ERR_TEMPERATURE_WARNING_TMC_IDLER_TOO_HOT);
-        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_ERROR))
+        }
+        if (ContainsBit(ec, ErrorCode::TMC_OVER_TEMPERATURE_ERROR)) {
             return FindErrorIndex(ERR_TEMPERATURE_TMC_IDLER_OVERHEAT_ERROR);
+        }
     }
 
-    // if nothing got caught, return a generic runtime error
+    // if nothing got caught, return a generic error
     return FindErrorIndex(ERR_OTHER_UNKNOWN_ERROR);
 }
 
-uint16_t PrusaErrorCode(uint8_t i){
+uint16_t PrusaErrorCode(uint8_t i) {
     return pgm_read_word(errorCodes + i);
 }
 
-const char * PrusaErrorTitle(uint8_t i){
+const char *PrusaErrorTitle(uint8_t i) {
     return (const char *)pgm_read_ptr(errorTitles + i);
 }
 
-const char * PrusaErrorDesc(uint8_t i){
+const char *PrusaErrorDesc(uint8_t i) {
     return (const char *)pgm_read_ptr(errorDescs + i);
 }
 
-uint8_t PrusaErrorButtons(uint8_t i){
+uint8_t PrusaErrorButtons(uint8_t i) {
     return pgm_read_byte(errorButtons + i);
 }
 
-const char * PrusaErrorButtonTitle(uint8_t bi){
+const char *PrusaErrorButtonTitle(uint8_t bi) {
     // -1 represents the hidden NoOperation button which is not drawn in any way
     return (const char *)pgm_read_ptr(btnOperation + bi - 1);
 }
 
-const char * PrusaErrorButtonMore(){
+const char *PrusaErrorButtonMore() {
     return MSG_BTN_MORE;
 }
 
@@ -193,13 +215,12 @@ Buttons ButtonPressed(ErrorCode ec) {
 
     const auto result = ButtonAvailable(ec);
     buttonSelectedOperation = ButtonOperations::NoOperation; // Reset operation
-
     return result;
 }
 
 Buttons ButtonAvailable(ErrorCode ec) {
     uint8_t ei = PrusaErrorCodeIndex(ec);
-    
+
     // The list of responses which occur in mmu error dialogs
     // Return button index or perform some action on the MK3 by itself (like Reset MMU)
     // Based on Prusa-Error-Codes errors_list.h
@@ -266,23 +287,23 @@ Buttons ButtonAvailable(ErrorCode ec) {
             break;
         }
         break;
-        
+
     case ERR_TEMPERATURE_TMC_PULLEY_OVERHEAT_ERROR:
     case ERR_TEMPERATURE_TMC_SELECTOR_OVERHEAT_ERROR:
     case ERR_TEMPERATURE_TMC_IDLER_OVERHEAT_ERROR:
-        
+
     case ERR_ELECTRICAL_TMC_PULLEY_DRIVER_ERROR:
     case ERR_ELECTRICAL_TMC_SELECTOR_DRIVER_ERROR:
     case ERR_ELECTRICAL_TMC_IDLER_DRIVER_ERROR:
-        
+
     case ERR_ELECTRICAL_TMC_PULLEY_DRIVER_RESET:
     case ERR_ELECTRICAL_TMC_SELECTOR_DRIVER_RESET:
     case ERR_ELECTRICAL_TMC_IDLER_DRIVER_RESET:
-        
+
     case ERR_ELECTRICAL_TMC_PULLEY_UNDERVOLTAGE_ERROR:
     case ERR_ELECTRICAL_TMC_SELECTOR_UNDERVOLTAGE_ERROR:
     case ERR_ELECTRICAL_TMC_IDLER_UNDERVOLTAGE_ERROR:
-        
+
     case ERR_ELECTRICAL_TMC_PULLEY_DRIVER_SHORTED:
     case ERR_ELECTRICAL_TMC_SELECTOR_DRIVER_SHORTED:
     case ERR_ELECTRICAL_TMC_IDLER_DRIVER_SHORTED:
@@ -323,7 +344,7 @@ Buttons ButtonAvailable(ErrorCode ec) {
             break;
         }
         break;
-        
+
     case ERR_SYSTEM_INVALID_TOOL:
         switch (buttonSelectedOperation) {
         case ButtonOperations::StopPrint: // "Stop print"
@@ -338,11 +359,11 @@ Buttons ButtonAvailable(ErrorCode ec) {
     default:
         break;
     }
-    
+
     return Buttons::NoButton;
 }
 
-void SetButtonResponse(ButtonOperations rsp){
+void SetButtonResponse(ButtonOperations rsp) {
     buttonSelectedOperation = rsp;
 }
 

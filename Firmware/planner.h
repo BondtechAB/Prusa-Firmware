@@ -18,17 +18,13 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// This module is to be considered a sub-module of stepper.c. Please don't include 
+// This module is to be considered a sub-module of stepper.c. Please don't include
 // this file from any other module.
 
 #ifndef planner_h
 #define planner_h
 
 #include "Marlin.h"
-
-#ifdef ENABLE_AUTO_BED_LEVELING
-#include "vector_3.h"
-#endif // ENABLE_AUTO_BED_LEVELING
 
 enum BlockFlag {
     // Planner flag to recalculate trapezoids on entry junction.
@@ -66,7 +62,7 @@ union dda_usteps_t
   };
 };
 
-// This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
+// This struct is used when buffering the setup for each linear movement "nominal" values are as specified in
 // the source g-code and may never actually be reached if acceleration management is active.
 typedef struct {
   // Fields used by the bresenham algorithm for tracing the line
@@ -99,8 +95,8 @@ typedef struct {
 
   // Settings for the trapezoid generator (runs inside an interrupt handler).
   // Changing the following values in the planner needs to be synchronized with the interrupt handler by disabling the interrupts.
-  uint32_t nominal_rate;              // The nominal step rate for this block in step_events/sec 
-  uint32_t initial_rate;              // The jerk-adjusted step rate at start of block  
+  uint32_t nominal_rate;              // The nominal step rate for this block in step_events/sec
+  uint32_t initial_rate;              // The jerk-adjusted step rate at start of block
   uint32_t final_rate;                // The minimal rate at exit
   uint32_t acceleration_steps_per_s2; // acceleration steps/sec^2
   uint8_t fan_speed; // Print fan speed, ranges from 0 to 255
@@ -130,25 +126,10 @@ typedef struct {
 extern float extruder_advance_K;    // Linear-advance K factor
 #endif
 
-#ifdef ENABLE_AUTO_BED_LEVELING
-// this holds the required transform to compensate for bed level
-extern matrix_3x3 plan_bed_level_matrix;
-#endif // #ifdef ENABLE_AUTO_BED_LEVELING
-
-// Initialize the motion plan subsystem      
+// Initialize the motion plan subsystem
 void plan_init();
 
-// Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
-// millimaters. Feed rate specifies the speed of the motion.
-
-#ifdef ENABLE_AUTO_BED_LEVELING
-void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate);
-
-// Get the position applying the bed level matrix if enabled
-vector_3 plan_get_position();
-#else
-
-/// Extracting common call of 
+/// Extracting common call of
 /// plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[3], ...
 /// saves almost 5KB.
 /// The performance penalty is negligible, since these planned lines are usually maintenance moves with the extruder.
@@ -159,15 +140,9 @@ void plan_buffer_line_destinationXYZE(float feed_rate);
 void plan_set_position_curposXYZE();
 
 void plan_buffer_line(float x, float y, float z, const float &e, float feed_rate, const float* gcode_start_position = NULL, uint16_t segment_idx = 0);
-//void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder);
-#endif // ENABLE_AUTO_BED_LEVELING
 
 // Set position. Used for G92 instructions.
-//#ifdef ENABLE_AUTO_BED_LEVELING
 void plan_set_position(float x, float y, float z, const float &e);
-//#else
-//void plan_set_position(const float &x, const float &y, const float &z, const float &e);
-//#endif // ENABLE_AUTO_BED_LEVELING
 
 void plan_set_z_position(const float &z);
 void plan_set_e_position(const float &e);
@@ -187,7 +162,7 @@ extern float* max_feedrate;
 
 
 // Use M201 to override by software
-extern uint32_t* max_acceleration_mm_per_s2; 
+extern uint32_t* max_acceleration_mm_per_s2;
 extern uint32_t max_acceleration_steps_per_s2[NUM_AXIS];
 
 extern long position[NUM_AXIS];
@@ -211,15 +186,15 @@ extern block_t block_buffer[BLOCK_BUFFER_SIZE];            // A ring buffer for 
 // Index of the next block to be pushed into the planner queue.
 extern volatile uint8_t block_buffer_head;
 // Index of the first block in the planner queue.
-// This is the block, which is being currently processed by the stepper routine, 
+// This is the block, which is being currently processed by the stepper routine,
 // or which is first to be processed by the stepper routine.
 extern volatile uint8_t block_buffer_tail;
 // Called when the current block is no longer needed. Discards the block and makes the memory
-// available for new blocks.    
-FORCE_INLINE void plan_discard_current_block()  
+// available for new blocks.
+FORCE_INLINE void plan_discard_current_block()
 {
   if (block_buffer_head != block_buffer_tail) {
-    block_buffer_tail = (block_buffer_tail + 1) & (BLOCK_BUFFER_SIZE - 1);  
+    block_buffer_tail = (block_buffer_tail + 1) & (BLOCK_BUFFER_SIZE - 1);
   }
 }
 
@@ -227,10 +202,10 @@ FORCE_INLINE void plan_discard_current_block()
 // Mark this block as busy, so its velocities and acceperations will be no more recalculated
 // by the planner routine.
 // Returns NULL if buffer empty
-FORCE_INLINE block_t *plan_get_current_block() 
+FORCE_INLINE block_t *plan_get_current_block()
 {
-  if (block_buffer_head == block_buffer_tail) { 
-    return(NULL); 
+  if (block_buffer_head == block_buffer_tail) {
+    return(NULL);
   }
   block_t *block = &block_buffer[block_buffer_tail];
   block->busy = true;
@@ -238,8 +213,8 @@ FORCE_INLINE block_t *plan_get_current_block()
 }
 
 // Returns true if the buffer has a queued block, false otherwise
-FORCE_INLINE bool blocks_queued() { 
-	return (block_buffer_head != block_buffer_tail); 
+FORCE_INLINE bool blocks_queued() {
+	return (block_buffer_head != block_buffer_tail);
 }
 
 //return the nr of buffered moves
@@ -250,7 +225,7 @@ FORCE_INLINE uint8_t moves_planned() {
 FORCE_INLINE bool planner_queue_full() {
     uint8_t next_block_index = block_buffer_head;
     if (++ next_block_index == BLOCK_BUFFER_SIZE)
-        next_block_index = 0; 
+        next_block_index = 0;
     return block_buffer_tail == next_block_index;
 }
 
@@ -266,7 +241,7 @@ extern bool planner_aborted;
 #ifdef PREVENT_DANGEROUS_EXTRUDE
 extern int extrude_min_temp;
 void set_extrude_min_temp(int temp);
-#endif
+#endif //PREVENT_DANGEROUS_EXTRUDE
 
 void reset_acceleration_rates();
 #endif

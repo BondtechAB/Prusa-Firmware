@@ -43,7 +43,7 @@
 /** @brief lang_table_header_t structure - (size= 16byte) */
 typedef struct
 {
-	uint32_t magic;      //+0 
+	uint32_t magic;      //+0
 	uint16_t size;       //+4
 	uint16_t count;      //+6
 	uint16_t checksum;   //+8

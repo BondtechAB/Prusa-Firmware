@@ -22,7 +22,7 @@ function(catch_add_sharded_tests TARGET)
     ""
     ${ARGN}
   )
-  
+
   if (NOT DEFINED _SHARD_COUNT)
     set(_SHARD_COUNT 2)
   endif()

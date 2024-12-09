@@ -30,9 +30,6 @@ extern int8_t xflash_init(void);
 extern void xflash_enable_wr(void);
 extern void xflash_disable_wr(void);
 extern uint8_t xflash_rd_status_reg(void);
-#if 0
-extern void w25x20cl_wr_status_reg(uint8_t val);
-#endif
 extern void xflash_rd_data(uint32_t addr, uint8_t* data, uint16_t cnt);
 
 extern void xflash_sector_erase(uint32_t addr);

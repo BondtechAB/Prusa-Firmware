@@ -8,6 +8,7 @@
 #include "language.h"
 #include "menu.h"
 #include "messages.h"
+#include "mmu2.h"
 #include "planner.h"
 #include "temperature.h"
 #include "ultralcd.h"
@@ -148,6 +149,7 @@ void Filament_sensor::triggerFilamentRemoved() {
 
 void Filament_sensor::filRunout() {
 //    SERIAL_ECHOLNPGM("filRunout");
+    sendHostNotification_P(MSG_FILAMENT_RUNOUT_DETECTED);
     runoutEnabled = false;
     autoLoadEnabled = false;
     stop_and_save_print_to_ram(0, 0);
@@ -311,22 +313,7 @@ bool IR_sensor_analog::checkVoltage(uint16_t raw) {
             puts_P(PSTR("fsensor v0.4 in fault range 4.6-5V - unconnected"));
             return false;
         }
-        /// newer IR sensor cannot normally produce 0-0.3V, this is considered a failure
-#if 0 // Disabled as it has to be decided if we gonna use this or not.
-            if(IRsensor_Hopen_TRESHOLD <= raw && raw <= IRsensor_VMax_TRESHOLD) {
-                puts_P(PSTR("fsensor v0.4 in fault range 0.0-0.3V - wrong IR sensor"));
-                return false;
-            }
-#endif
     }
-    /// If IR sensor is "uknown state" and filament is not loaded > 1.5V return false
-#if 0
-#error "I really think this code can't be enabled anymore because we are constantly checking this voltage."
-        if((sensorRevision == SensorRevision::_Undef) && (raw > IRsensor_Lmax_TRESHOLD)) {
-            puts_P(PSTR("Unknown IR sensor version and no filament loaded detected."));
-            return false;
-        }
-#endif
     // otherwise the IR fsensor is considered working correctly
     return true;
 }

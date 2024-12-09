@@ -767,7 +767,7 @@ uint8_t Sd2Card::waitStartBlock(void) {
   return false;
 }
 
-// Toshiba FlashAir support, copied from 
+// Toshiba FlashAir support, copied from
 // https://flashair-developers.com/en/documents/tutorials/arduino/
 // However, the official website was closed in September 2019.
 // There is an archived website (written in Japanese).
@@ -783,7 +783,7 @@ uint8_t Sd2Card::readExt(uint32_t arg, uint8_t* dst, uint16_t count) {
     error(SD_CARD_ERROR_CMD48);
     goto fail;
   }
-  
+
   // wait for start block token.
   if (!waitStartBlock()) {
     goto fail;
@@ -793,7 +793,7 @@ uint8_t Sd2Card::readExt(uint32_t arg, uint8_t* dst, uint16_t count) {
   for (i = 0; i < count; ++i) {
     dst[i] = spiRec();
   }
-  
+
   // skip dummy bytes and 16-bit crc.
   for (; i < 514; ++i) {
     spiRec();
@@ -815,19 +815,19 @@ uint8_t Sd2Card::readExt(uint32_t arg, uint8_t* dst, uint16_t count) {
  * \return The value one, true, is returned for success and
  * the value zero, false, is returned for failure.
  */
-uint8_t Sd2Card::readExtMemory(uint8_t mio, uint8_t func, 
+uint8_t Sd2Card::readExtMemory(uint8_t mio, uint8_t func,
     uint32_t addr, uint16_t count, uint8_t* dst) {
   uint32_t offset = addr & 0x1FF;
   if (offset + count > 512) count = 512 - offset;
-  
+
   if (count == 0) return true;
-  
-  uint32_t arg = 
-      (((uint32_t)mio & 0x1) << 31) | 
+
+  uint32_t arg =
+      (((uint32_t)mio & 0x1) << 31) |
     (mio ? (((uint32_t)func & 0x7) << 28) : (((uint32_t)func & 0xF) << 27)) |
     ((addr & 0x1FFFF) << 9) |
     ((count - 1) & 0x1FF);
-  
+
   return readExt(arg, dst, count);
 }
 

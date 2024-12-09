@@ -87,7 +87,7 @@ int16_t SdFile::readFilteredGcode(){
 
     // It may seem unreasonable to copy the variable into a local one and copy it back at the end of this method,
     // but there is an important point of view: the compiler is unsure whether it can optimize the reads/writes
-    // to gfReadPtr within this method, because it is a class member variable. 
+    // to gfReadPtr within this method, because it is a class member variable.
     // The compiler cannot see, if omitting read/write won't have any incorrect side-effects to the rest of the whole FW.
     // So this trick explicitly states, that rdPtr is a local variable limited to the scope of this method,
     // therefore the compiler can omit read/write to it (keep it in registers!) as it sees fit.
@@ -96,7 +96,7 @@ int16_t SdFile::readFilteredGcode(){
 
     // the same applies to gfXBegin, codesize dropped another 100B!
     const uint8_t *blockBuffBegin = gfBlockBuffBegin();
-    
+
     uint8_t consecutiveCommentLines = 0;
     while( *rdPtr == ';' ){
         for(;;){
@@ -104,8 +104,8 @@ int16_t SdFile::readFilteredGcode(){
             //while( *(++gfReadPtr) != '\n' ); // skip until a newline is found - suboptimal code!
             // Wondering, why this "nice while cycle" is done in such a weird way using a separate find_endl() function?
             // Have a look at the ASM code GCC produced!
-            
-            // At first - a separate find_endl() makes the compiler understand, 
+
+            // At first - a separate find_endl() makes the compiler understand,
             // that I don't need to store gfReadPtr every time, I'm only interested in the final address where the '\n' was found
             // - the cycle can run on CPU registers only without touching memory besides reading the character being compared.
             // Not only makes the code run considerably faster, but is also 40B shorter!
@@ -118,7 +118,7 @@ int16_t SdFile::readFilteredGcode(){
             //   11c62:	sbci	r19, 0xFF	; 255
             //   11c64:	ld	r22, Z
             //   11c66:	cpi	r22, 0x0A	; 10
-            //   11c68:	brne	.-12     	; 0x11c5e <get_command()+0x524>            
+            //   11c68:	brne	.-12     	; 0x11c5e <get_command()+0x524>
 
             // Still, even that was suboptimal as the compiler seems not to understand the usage of ld r22, Z+ (the plus is important)
             // aka automatic increment of the Z register (R30:R31 pair)
@@ -153,7 +153,7 @@ emit_char:
     {
         gfUpdateCurrentPosition( rdPtr - start + 1 );
         int16_t rv = *rdPtr++;
-        
+
         if( curPosition_ >= fileSize_ ){
             // past the end of file
             goto eof_or_fail;
@@ -200,7 +200,7 @@ bool SdFile::gfComputeNextFileBlock() {
         // SHR by 9 means skip the last byte and shift just 3 bytes by 1
         // -> should be 8 instructions... and not the horrible loop shifting 4 bytes at once
         // still need to get some work on this
-        gfBlock = vol_->rootDirStart() + (curPosition_ >> 9); 
+        gfBlock = vol_->rootDirStart() + (curPosition_ >> 9);
     } else {
         uint8_t blockOfCluster = vol_->blockOfCluster(curPosition_);
         if (gfOffset == 0 && blockOfCluster == 0) {

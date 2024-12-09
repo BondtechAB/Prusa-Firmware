@@ -21,6 +21,7 @@ extern const char MSG_BED_HEATING[];
 extern const char MSG_BED_LEVELING_FAILED_POINT_LOW[];
 extern const char MSG_BED_SKEW_OFFSET_DETECTION_FITTING_FAILED[];
 extern const char MSG_BELT_STATUS[];
+extern const char MSG_EJECT[];
 extern const char MSG_CANCEL[];
 extern const char MSG_CALIBRATE_Z_AUTO[];
 extern const char MSG_CARD_MENU[];
@@ -37,7 +38,6 @@ extern const char MSG_ERROR[];
 extern const char MSG_EXTRUDER[];
 extern const char MSG_FANS_CHECK[];
 extern const char MSG_FIL_RUNOUTS[];
-extern const char MSG_FILAMENT[];
 extern const char MSG_FAN_SPEED[];
 extern const char MSG_HOTEND_FAN_SPEED[];
 extern const char MSG_PRINT_FAN_SPEED[];
@@ -104,8 +104,12 @@ extern const char MSG_SELFTEST_MOTOR[];
 extern const char MSG_SELFTEST_FILAMENT_SENSOR[];
 extern const char MSG_SELFTEST_WIRINGERROR[];
 extern const char MSG_SETTINGS[];
+#ifndef REPLACE_SETREADY
 extern const char MSG_SET_READY[];
 extern const char MSG_SET_NOT_READY[];
+#else
+extern const char MSG_HOSTPRINT[];
+#endif
 #ifdef HOST_SHUTDOWN
 extern const char MSG_SHUTDOWN_HOST[];
 #endif //HOST_SHUTOWN
@@ -123,6 +127,7 @@ extern const char MSG_SILENT[];
 extern const char MSG_NORMAL[];
 extern const char MSG_STEALTH[];
 extern const char MSG_STEEL_SHEET_CHECK[];
+extern const char MSG_Z_CALIBRATION_PROMPT[];
 extern const char MSG_STOP_PRINT[];
 extern const char MSG_STOPPED[];
 extern const char MSG_PINDA_CALIBRATION[];
@@ -152,6 +157,8 @@ extern const char MSG_GCODE_NEWER_FIRMWARE_CONTINUE[];
 extern const char MSG_GCODE_NEWER_FIRMWARE_CANCELLED[];
 extern const char MSG_GCODE_DIFF_CONTINUE[];
 extern const char MSG_GCODE_DIFF_CANCELLED[];
+extern const char MSG_MISSING_FILAMENT_CONTINUE[];
+extern const char MSG_MISSING_FILAMENT_CANCELLED[];
 extern const char MSG_NOZZLE_DIFFERS_CONTINUE[];
 extern const char MSG_NOZZLE_DIFFERS_CANCELLED[];
 extern const char MSG_NOZZLE_DIAMETER[];
@@ -194,6 +201,9 @@ extern const char MSG_LOAD_ALL[];
 extern const char MSG_NOZZLE_CNG_MENU [];
 extern const char MSG_NOZZLE_CNG_READ_HELP [];
 extern const char MSG_NOZZLE_CNG_CHANGED [];
+#ifdef QUICK_NOZZLE_CHANGE
+extern const char MSG_NOZZLE_CNG_COOLDOWN [];
+#endif //QUICK_NOZZLE_CHANGE
 extern const char MSG_REPRINT [];
 extern const char MSG_FILE_CNT [];
 extern const char MSG_CHANGED_MOTHERBOARD [];
@@ -201,7 +211,7 @@ extern const char MSG_CHANGED_PRINTER [];
 extern const char MSG_CHANGED_BOTH [];
 extern const char MSG_DEFAULT_SETTINGS_LOADED [];
 extern const char MSG_FORCE_SELFTEST [];
-extern const char MSG_MBL_FAILED_Z_CAL [];
+extern const char MSG_MBL_FAILED [];
 extern const char MSG_ZLEVELING_ENFORCED [];
 extern const char MSG_UNLOAD_SUCCESSFUL [];
 extern const char MSG_CHECK_IDLER [];
@@ -368,31 +378,22 @@ extern const char MSG_NEW_FIRMWARE_PLEASE_UPGRADE [];
 extern const char MSG_FW_MK3_DETECTED [];
 
 //not internationalized messages
-#if 0
-extern const char MSG_FW_VERSION_BETA[];
-#endif
 extern const char MSG_SPOOL_JOIN[];
 extern const char MSG_FIRMWARE[];
+extern const char MSG_FILAMENT[];
 extern const char MSG_TOSHIBA_FLASH_AIR_COMPATIBILITY[];
 extern const char MSG_PINDA[];
 extern const char MSG_WELCOME[];
-extern const char MSG_SD_WORKDIR_FAIL[];
 extern const char MSG_BROWNOUT_RESET[];
 extern const char MSG_EXTERNAL_RESET[];
 extern const char MSG_FILE_SAVED[];
-extern const char MSG_POSITION_UNKNOWN[];
 extern const char MSG_SOFTWARE_RESET[];
 extern const char MSG_UNKNOWN_COMMAND[];
 extern const char MSG_WATCHDOG_RESET[];
 extern const char MSG_Z_MAX[];
 extern const char MSG_Z_MIN[];
-extern const char MSG_ZPROBE_OUT[];
-#ifdef ENABLE_AUTO_BED_LEVELING
-extern const char MSG_ZPROBE_ZOFFSET[];
-#endif
 extern const char MSG_TMC_OVERTEMP[];
 extern const char MSG_Enqueing[];
-extern const char MSG_ENDSTOPS_HIT[];
 extern const char MSG_SD_ERR_WRITE_TO_FILE[];
 extern const char MSG_OK[];
 extern const char MSG_OK_CAPS[];
@@ -413,6 +414,7 @@ extern const char MSG_HOST_ACTION_NOT_READY[];
 extern const char MSG_HOST_ACTION_START[];
 extern const char MSG_HOST_ACTION_UVLO_RECOVERY_READY[];
 extern const char MSG_HOST_ACTION_UVLO_AUTO_RECOVERY_READY[];
+extern const char MSG_HOST_ACTION_NOTIFICATION[];
 #ifdef HOST_SHUTDOWN
 extern const char MSG_HOST_ACTION_SHUTDOWN[];
 #endif //HOST_SHUTOWN
@@ -423,6 +425,7 @@ extern const char MSG_ADVANCE_K[];
 extern const char MSG_POWERPANIC_DETECTED[];
 extern const char MSG_LCD_STATUS_CHANGED[];
 extern const char MSG_UNKNOWN_CODE[];
+extern const char MSG_FILAMENT_RUNOUT_DETECTED[];
 
 // Common G-gcodes
 extern const char G1_E_F2700[];

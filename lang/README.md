@@ -51,7 +51,7 @@ This step is already performed for you when using ``build.sh`` or ``PF-build.sh`
 
 #### How to update `.pot` file
 
-Run 
+Run
 
      python update-pot.py
 

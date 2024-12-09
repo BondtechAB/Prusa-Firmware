@@ -65,7 +65,7 @@
 
 #define LANG_SIZE_RESERVED     0x3500 // reserved space for secondary language (13568 bytes).
                                       // 0x3D00 Maximum 15616 bytes as it depends on xflash_layout.h
-                                      // 16 Languages max. per group including stock 
+                                      // 16 Languages max. per group including stock
 
 #if (LANG_SIZE_RESERVED % 256)
   #error "LANG_SIZE_RESERVED should be a multiple of a page size"

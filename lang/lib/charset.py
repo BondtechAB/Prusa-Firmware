@@ -168,4 +168,4 @@ def unicode_to_source(buf):
     for c in buf:
         out += INVERSE_CUSTOM_CHARS.get(c, c)
     return out
-    
+

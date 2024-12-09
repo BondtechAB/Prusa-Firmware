@@ -23,7 +23,7 @@
 #define MarlinSerial_h
 #include "Marlin.h"
 
-#if !defined(SERIAL_PORT) 
+#if !defined(SERIAL_PORT)
 #define SERIAL_PORT 0
 #endif
 
@@ -34,7 +34,7 @@
 	(SERIAL_PORT == 3 && defined(UBRR3H)))
 #define HAS_UART
 #endif
-						
+
 // These are macros to build serial port register names for the selected SERIAL_PORT (C preprocessor
 // requires two levels of indirection to expand macro values properly)
 #if SERIAL_PORT == 0 && (!defined(UBRR0H) || !defined(UDR0)) // use un-numbered registers if necessary
@@ -43,15 +43,15 @@
 #define SERIAL_REGNAME(registerbase,number,suffix) _REGNAME(registerbase, number, suffix)
 #endif
 
-// Registers used by MarlinSerial class (these are expanded 
+// Registers used by MarlinSerial class (these are expanded
 // depending on selected serial port
 #define M_UCSRxA SERIAL_REGNAME(UCSR,SERIAL_PORT,A) // defines M_UCSRxA to be UCSRnA where n is the serial port number
-#define M_UCSRxB SERIAL_REGNAME(UCSR,SERIAL_PORT,B) 
-#define M_RXENx SERIAL_REGNAME(RXEN,SERIAL_PORT,)    
-#define M_TXENx SERIAL_REGNAME(TXEN,SERIAL_PORT,)    
-#define M_RXCIEx SERIAL_REGNAME(RXCIE,SERIAL_PORT,)    
-#define M_UDREx SERIAL_REGNAME(UDRE,SERIAL_PORT,)    
-#define M_UDRx SERIAL_REGNAME(UDR,SERIAL_PORT,)  
+#define M_UCSRxB SERIAL_REGNAME(UCSR,SERIAL_PORT,B)
+#define M_RXENx SERIAL_REGNAME(RXEN,SERIAL_PORT,)
+#define M_TXENx SERIAL_REGNAME(TXEN,SERIAL_PORT,)
+#define M_RXCIEx SERIAL_REGNAME(RXCIE,SERIAL_PORT,)
+#define M_UDREx SERIAL_REGNAME(UDRE,SERIAL_PORT,)
+#define M_UDRx SERIAL_REGNAME(UDR,SERIAL_PORT,)
 #define M_UBRRxH SERIAL_REGNAME(UBRR,SERIAL_PORT,H)
 #define M_UBRRxL SERIAL_REGNAME(UBRR,SERIAL_PORT,L)
 #define M_RXCx SERIAL_REGNAME(RXC,SERIAL_PORT,)
@@ -97,7 +97,7 @@ class MarlinSerial //: public Stream
     static int peek(void);
     static int read(void);
     static void flush(void);
-    
+
     static /*FORCE_INLINE*/ int available(void)
     {
       return (unsigned int)(RX_BUFFER_SIZE + rx_buffer.head - rx_buffer.tail) % RX_BUFFER_SIZE;
@@ -124,7 +124,7 @@ class MarlinSerial //: public Stream
 			UDR1 = c;
 		}
 	}
-    
+
     static void checkRx(void)
     {
         if (selectedSerialPort == 0) {
@@ -177,15 +177,15 @@ class MarlinSerial //: public Stream
             }
         }
     }
-    
-    
+
+
     private:
     static void printNumber(unsigned long, uint8_t);
     static void printFloat(double, uint8_t);
-    
-    
+
+
   public:
-    
+
     static /*FORCE_INLINE*/ void write(const char *str)
     {
       while (*str)
@@ -205,7 +205,7 @@ class MarlinSerial //: public Stream
         write(s[i]);
       }
     }*/
-    
+
     static FORCE_INLINE void print(const char *str)
     {
       write(str);

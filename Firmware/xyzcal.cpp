@@ -5,6 +5,7 @@
 
 #include "xyzcal.h"
 #include <avr/wdt.h>
+#include "lcd.h"
 #include "stepper.h"
 #include "temperature.h"
 #include "sm4.h"

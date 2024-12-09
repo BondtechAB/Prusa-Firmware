@@ -80,16 +80,6 @@ uint8_t xflash_rd_status_reg(void)
 	return val;
 }
 
-#if 0
-void w25x20cl_wr_status_reg(uint8_t val)
-{
-	_CS_LOW();
-	_SPI_TX(_CMD_WR_STATUS_REG);         // send command 0x90
-	_SPI_TX(val);                        // send value
-	_CS_HIGH();
-}
-#endif
-
 static void xflash_send_cmdaddr(uint8_t cmd, uint32_t addr)
 {
 	_SPI_TX(cmd);                        // send command 0x03

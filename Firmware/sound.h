@@ -22,12 +22,12 @@ typedef enum : uint8_t {
     e_SOUND_TYPE_BlindAlert
 } eSOUND_TYPE;
 
-typedef enum : uint8_t { 
-    e_SOUND_CLASS_Echo, 
-    e_SOUND_CLASS_Prompt, 
-    e_SOUND_CLASS_Confirm, 
-    e_SOUND_CLASS_Warning, 
-    e_SOUND_CLASS_Alert 
+typedef enum : uint8_t {
+    e_SOUND_CLASS_Echo,
+    e_SOUND_CLASS_Prompt,
+    e_SOUND_CLASS_Confirm,
+    e_SOUND_CLASS_Warning,
+    e_SOUND_CLASS_Alert
 } eSOUND_CLASS;
 
 extern eSOUND_MODE eSoundMode;

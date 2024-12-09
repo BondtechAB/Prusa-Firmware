@@ -326,7 +326,7 @@ void FORCE_INLINE mp_handle_cmd(const MeatPack_Command c) {
         break;
     }
 
-    mp_echo_config_state();   
+    mp_echo_config_state();
 }
 
 //==========================================================================

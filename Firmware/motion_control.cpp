@@ -24,13 +24,13 @@
 #include "stepper.h"
 #include "planner.h"
 
-// The arc is approximated by generating a huge number of tiny, linear segments. The length of each 
-// segment is configured in settings.mm_per_arc_segment.  
+// The arc is approximated by generating a huge number of tiny, linear segments. The length of each
+// segment is configured in settings.mm_per_arc_segment.
 void mc_arc(const float* position, float* target, const float* offset, float feed_rate, float radius, bool isclockwise, uint16_t start_segment_idx)
 {
     float start_position[4];
     memcpy(start_position, position, sizeof(start_position));
-    
+
     float r_axis_x = -offset[X_AXIS];  // Radius vector from center to current location
     float r_axis_y = -offset[Y_AXIS];
     float center_axis_x = start_position[X_AXIS] - r_axis_x;
@@ -56,7 +56,7 @@ void mc_arc(const float* position, float* target, const float* offset, float fee
     if (cs.arc_segments_per_sec > 0)
     {
         // 20200417 - FormerLurker - Implement MIN_ARC_SEGMENTS if it is defined - from Marlin 2.0 implementation
-        float mm_per_arc_segment_sec = (feed_rate / 60.0f) * (1.0f / cs.arc_segments_per_sec);
+        float mm_per_arc_segment_sec = feed_rate / (60.f * float(cs.arc_segments_per_sec));
         if (mm_per_arc_segment_sec < mm_per_arc_segment)
             mm_per_arc_segment = mm_per_arc_segment_sec;
     }
@@ -89,7 +89,7 @@ void mc_arc(const float* position, float* target, const float* offset, float fee
     // calculating here
     const float millimeters_of_travel_arc = hypot(angular_travel_total * radius, fabs(travel_z));
     if (millimeters_of_travel_arc < 0.001) { return; }
-    
+
     // Calculate the number of arc segments
     unsigned short segments = static_cast<unsigned short>(ceil(millimeters_of_travel_arc / mm_per_arc_segment));
 

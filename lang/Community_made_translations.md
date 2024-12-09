@@ -2,14 +2,14 @@
 
 - **Dutch / Nederlands**
   - Maintainers: **@3d-gussner** and **@vintagepc**
-  - Co-maintainers: 
+  - Co-maintainers:
   - Contributors: **@stelgenhof**
   - [X] **Active**      since March 2021
   - [X] **Maintained**  since September 2019
 
 - **Romanian / Română**
-  - Maintainers: **@leptun** and **@Hauzman**
-  - Co-maintainers: **@QuantumRoboticsFTC**
+  - Maintainers: **@leptun**
+  - Co-maintainers: **@Hauzman**
   - Contributors:
   - [X] **Active**      since January 2022
   - [X] **Maintained**  since January 2022
@@ -22,11 +22,11 @@
   - [X] **Maintained**  since January 2022
 
 - **Croatian / Hrvatski**
-  - Maintainers: **@Prime1910**
-  - Co-maintainers: **@PRPA041**
+  - Maintainers:
+  - Co-maintainers:
   - Contributors:
-  - [X] **Active**      since January 2022
-  - [X] **Maintained**  since January 2022
+  - [ ] **Active**      started January 2022, inactive September 2024
+  - [ ] **Maintained**  started January 2022, inactive September 2024
 
 - **Slovak / Slovencina**
   - Maintainers: **@ingbrzy**
@@ -36,15 +36,15 @@
   - [X] **Maintained**  since June 2021
 
 - **Swedish / Svenska**
-  - Maintainers: **@Painkiller56**
-  - Co-maintainers:**@pkg2000**
+  - Maintainers:
+  - Co-maintainers:
   - Contributors:
-  - [X] **Active**      since March 2022
-  - [X] **Maintained**  since January 2022
+  - [ ] **Active**      started March 2022, inactive September 2024
+  - [ ] **Maintained**  started January 2022
 
 - **Norwegian / Norsk**
-  - Maintainers: **@OS-kar** and **@pkg2000**
-  - Co-maintainers: **@trondkla**
+  - Maintainers:
+  - Co-maintainers:
   - Contributors:
-  - [X] **Active**      since May 2022
-  - [X] **Maintained**  since February 2022
+  - [ ] **Active**      started May 2022, inactive September 2024
+  - [ ] **Maintained**  started February 2022

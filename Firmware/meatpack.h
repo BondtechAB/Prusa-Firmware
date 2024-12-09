@@ -22,7 +22,7 @@
 * objects with high curvature, especially at high speeds. There is also the issue of the limited
 * baud rate provided by Prusa's Atmega2560-based boards, over the USB serial connection. So soft-
 * ware like OctoPrint would also suffer this same micro-stuttering and poor print quality issue.
-* 
+*
 */
 #include <stdint.h>
 #include "Configuration.h"

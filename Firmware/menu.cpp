@@ -110,7 +110,7 @@ void menu_back_no_reset(void)
 {
 	if (menu_depth > 0)
 	{
-		menu_depth--;		
+		menu_depth--;
 		menu_goto(menu_stack[menu_depth].menu, menu_stack[menu_depth].position, false);
 	}
 }
@@ -145,7 +145,7 @@ void menu_item_ret(void)
 {
 	lcd_draw_update = 2;
 	menu_item++;
-	
+
 	//prevent the rest of the menu items from rendering or getting clicked
 	menu_row = LCD_HEIGHT; // early exit from the MENU_BEGIN() for loop at the end of the current cycle
 	menu_line = 0; // prevent subsequent menu items from rendering at all in the current MENU_BEGIN() for loop cycle
@@ -433,24 +433,24 @@ static void menu_draw_P(const char chr, const char* str, const int16_t val)
 
 //! @brief Draw up to 10 chars of text and a float number in format from +0.0 to +12345.0. The increased range is necessary
 //! for displaying large values of extruder positions, which caused text overflow in the previous implementation.
-//! 
+//!
 //! @param str string label to print
-//! @param val value to print aligned to the right side of the display  
-//! 
+//! @param val value to print aligned to the right side of the display
+//!
 //! Implementation comments:
 //! The text needs to come with a colon ":", this function does not append it anymore.
 //! That resulted in a much shorter implementation (234628B -> 234476B)
 //! There are similar functions around which may be shortened in a similar way
 void menu_draw_float31(const char* str, float val)
 {
-	lcd_printf_P(menu_fmt_float31, str, val);	
+	lcd_printf_P(menu_fmt_float31, str, val);
 }
 
 //! @brief Draw up to 14 chars of text and a float number in format +1.234
-//! 
+//!
 //! @param str string label to print
-//! @param val value to print aligned to the right side of the display  
-//! 
+//! @param val value to print aligned to the right side of the display
+//!
 //! Implementation comments:
 //! This function uses similar optimization principles as menu_draw_float31
 //! (i.e. str must include a ':' at its end)
@@ -501,7 +501,7 @@ void menu_item_edit_P(const char* str, void* pval, uint8_t pbits, int16_t min_va
 	{
         int16_t cur_val = (pbits == 8 ? *((uint8_t*)pval) : *((int16_t*)pval));
 
-		if (lcd_draw_update) 
+		if (lcd_draw_update)
 		{
 			lcd_set_cursor(0, menu_row);
 			menu_draw_P(menu_selection_mark(), str, cur_val);
@@ -530,7 +530,7 @@ void menu_progressbar_init(uint16_t total, const char* title)
 	lcd_clear();
 	progressbar_block_count = 0;
 	progressbar_total = total;
-	
+
 	lcd_set_cursor(0, 1);
 	lcd_print_pad_P(title, LCD_WIDTH);
 	lcd_set_cursor(0, 2);

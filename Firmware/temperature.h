@@ -19,7 +19,7 @@
 */
 
 #ifndef temperature_h
-#define temperature_h 
+#define temperature_h
 
 #include "Marlin.h"
 #include "config.h"
@@ -32,7 +32,7 @@ bool get_temp_error(); //return true if any thermal error is set
 
 // low level conversion routines
 // do not use these routines and variables outside of temperature.cpp
-extern int target_temperature[EXTRUDERS];  
+extern int target_temperature[EXTRUDERS];
 extern float current_temperature[EXTRUDERS];
 #ifdef SHOW_TEMP_ADC_VALUES
   extern int current_temperature_raw[EXTRUDERS];
@@ -95,16 +95,16 @@ void resetPID(uint8_t extruder);
 //deg=degreeCelsius
 
 // Doesn't save FLASH when FORCE_INLINE removed.
-FORCE_INLINE float degHotend(uint8_t extruder) {  
+FORCE_INLINE float degHotend(uint8_t extruder) {
   return current_temperature[extruder];
 };
 
 #ifdef SHOW_TEMP_ADC_VALUES
-  FORCE_INLINE float rawHotendTemp(uint8_t extruder) {  
+  FORCE_INLINE float rawHotendTemp(uint8_t extruder) {
     return current_temperature_raw[extruder];
   };
 
-  FORCE_INLINE float rawBedTemp() {  
+  FORCE_INLINE float rawBedTemp() {
     return current_temperature_bed_raw;
   };
 #endif
@@ -114,25 +114,25 @@ FORCE_INLINE float degBed() {
 };
 
 // Doesn't save FLASH when FORCE_INLINE removed.
-FORCE_INLINE float degTargetHotend(uint8_t extruder) {  
+FORCE_INLINE float degTargetHotend(uint8_t extruder) {
   return target_temperature[extruder];
 };
 
-FORCE_INLINE float degTargetBed() {   
+FORCE_INLINE float degTargetBed() {
   return target_temperature_bed;
 };
 
 // Doesn't save FLASH when FORCE_INLINE removed.
-FORCE_INLINE void setTargetHotend(const float &celsius) {  
+FORCE_INLINE void setTargetHotend(const float &celsius) {
   target_temperature[0] = celsius;
   resetPID(0);
 };
 
-FORCE_INLINE void setTargetBed(const float &celsius) {  
+FORCE_INLINE void setTargetBed(const float &celsius) {
   target_temperature_bed = celsius;
 };
 
-FORCE_INLINE bool isHeatingHotend(uint8_t extruder){  
+FORCE_INLINE bool isHeatingHotend(uint8_t extruder){
   return target_temperature[extruder] > current_temperature[extruder];
 };
 
@@ -140,7 +140,7 @@ FORCE_INLINE bool isHeatingBed() {
   return target_temperature_bed > current_temperature_bed;
 };
 
-FORCE_INLINE bool isCoolingHotend(uint8_t extruder) {  
+FORCE_INLINE bool isCoolingHotend(uint8_t extruder) {
   return target_temperature[extruder] < current_temperature[extruder];
 };
 

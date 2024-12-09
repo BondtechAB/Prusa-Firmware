@@ -30,7 +30,7 @@ static const char MSG_PROGRESS_HOMING[] PROGMEM_I1           = ISTR("Homing"); /
 static const char MSG_PROGRESS_MOVING_SELECTOR[] PROGMEM_I1  = ISTR("Moving selector"); ////MSG_PROGRESS_MOVING_SELECTOR c=20
 static const char MSG_PROGRESS_FEED_FSENSOR[] PROGMEM_I1     = ISTR("Feeding to FSensor"); ////MSG_PROGRESS_FEED_FSENSOR c=20
 
-static const char * const progressTexts[] PROGMEM = {
+static const char *const progressTexts[] PROGMEM = {
     _R(MSG_PROGRESS_OK),
     _R(MSG_PROGRESS_ENGAGE_IDLER),
     _R(MSG_PROGRESS_DISENGAGE_IDLER),
@@ -62,11 +62,11 @@ static const char * const progressTexts[] PROGMEM = {
     _R(MSG_PROGRESS_FEED_FSENSOR)
 };
 
-const char * ProgressCodeToText(ProgressCode pc){
+const char *ProgressCodeToText(ProgressCode pc) {
     // @@TODO ?? a better fallback option?
-    return ( (uint16_t)pc <= (sizeof(progressTexts) / sizeof(progressTexts[0])) )
-       ? static_cast<const char *>(pgm_read_ptr(&progressTexts[(uint16_t)pc]))
-       : static_cast<const char *>(pgm_read_ptr(&progressTexts[0]));
+    return ((uint16_t)pc <= (sizeof(progressTexts) / sizeof(progressTexts[0])))
+        ? static_cast<const char *>(pgm_read_ptr(&progressTexts[(uint16_t)pc]))
+        : static_cast<const char *>(pgm_read_ptr(&progressTexts[0]));
 }
 
 } // namespace MMU2

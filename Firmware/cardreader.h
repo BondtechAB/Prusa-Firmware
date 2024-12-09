@@ -12,7 +12,7 @@ class CardReader
 {
 public:
   CardReader();
-  
+
   enum LsAction : uint8_t
   {
     LS_SerialPrint,
@@ -26,14 +26,14 @@ public:
     inline ls_param():LFN(0), timestamp(0) { }
     inline ls_param(bool LFN, bool timestamp):LFN(LFN), timestamp(timestamp) { }
   } __attribute__((packed));
-  
+
   void mount(bool doPresort = true);
   void write_command(char *buf);
   void write_command_no_newline(char *buf);
   //files auto[0-9].g on the sd card are performed in a row
   //this is to delay autostart and hence the initialisaiton of the sd card to some seconds after the normal init, so the device is available quick after a reset
 
-  void checkautostart(bool x); 
+  void checkautostart(bool x);
   void openFileWrite(const char* name);
   void openFileReadFilteredGcode(const char* name, bool replace_current = false);
   void openLogFile(const char* name);
@@ -49,12 +49,11 @@ public:
   void getfilename_simple(uint16_t entry, const char * const match = NULL);
   void getfilename_next(uint32_t position, const char * const match = NULL);
   uint16_t getnrfilenames();
-  
+
   void getAbsFilename(char *t);
   void printAbsFilenameFast();
   void getDirName(char* name, uint8_t level);
   uint8_t getWorkDirDepth();
-  
 
   void ls(ls_param params);
   bool chdir(const char * relpath, bool doPresort);
@@ -90,7 +89,7 @@ public:
 public:
   bool saving;
   bool logging;
-  bool sdprinting ;  
+  bool sdprinting;
   bool mounted;
   char filename[FILENAME_LENGTH];
   // There are scenarios when simple modification time is not enough (on MS Windows)
@@ -147,7 +146,7 @@ extern CardReader card;
 #define IS_SD_PRINTING (card.sdprinting)
 
 #if (SDCARDDETECT > -1)
-# ifdef SDCARDDETECTINVERTED 
+# ifdef SDCARDDETECTINVERTED
 #  define IS_SD_INSERTED (READ(SDCARDDETECT)!=0)
 # else
 #  define IS_SD_INSERTED (READ(SDCARDDETECT)==0)

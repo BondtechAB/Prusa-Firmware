@@ -1,0 +1,25 @@
+name: Community
+description: Related to "Community made" features
+title: '[Community made] '
+labels:
+  - community_made
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Prusa Research will NOT follow up these issues!
+        The maintainers of the "Community made" feature should/will react.
+
+        Please, before you create a new "Community made" ticket, please make sure you searched in open and closed issues and couldn't find anything that matches.
+  - type: textarea
+    id: which_community
+    attributes:
+      label: Which Community made feature do you want to address?
+    validations:
+      required: true
+  - type: textarea
+    id: What_about_community
+    attributes:
+      label: What is your request/question/suggestion?
+    validations:
+      required: true

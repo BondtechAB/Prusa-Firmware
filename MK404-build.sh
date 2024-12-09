@@ -1,6 +1,6 @@
-#!/bin/bash 
+#!/bin/bash
 # This bash script is used to compile automatically and run the MK404 simulator
-# 
+#
 # Supported OS:  Linux64 bit
 #
 # Linux:
@@ -8,7 +8,7 @@
 # 1. Follow these instructions
 # 2. Open Ubuntu bash and get latest updates with 'sudo apt-get update'
 # 3. Install latest updates with 'sudo apt-get upgrade'
-# 
+#
 #
 # Version: 1.0.0-Build_18
 # Change log:
@@ -91,7 +91,7 @@ echo "$(tput setaf 2)-u$(tput sgr0) Update MK404"
 echo "$(tput setaf 2)-x$(tput sgr0) Board memory size"
 echo "$(tput setaf 2)-y$(tput sgr0) Board flash size"
 echo "$(tput setaf 2)-?$(tput sgr0) Help"
-echo 
+echo
 echo "Brief USAGE:"
 echo "  $(tput setaf 2)./MK404-build.sh$(tput sgr0)  [-c] [-f] [-g] [-m] [-n] [-p] [-u] [-v] [-x] [-h] [-?]"
 echo
@@ -209,7 +209,7 @@ if [ ! -z $mk404_printer_flag ]; then
     if [ "$mk404_printer_flag" != "$MK404_PRINTER" ]; then
         echo "$(tput setaf 3)You defined a different printer type than the firmware!"
         echo "This can cause unexpected issues.$(tput sgr 0)"
-        echo 
+        echo
         PS3="Select $(tput setaf 2)printer$(tput sgr 0) you want to use."
         select which in "$(tput setaf 2)$MK404_PRINTER$(tput sgr 0)" "$mk404_printer_flag"; do
             case $which in
@@ -220,7 +220,7 @@ if [ ! -z $mk404_printer_flag ]; then
                 $mk404_printer_flag)
                     echo "Set $(tput setaf 3)$mk404_printer_flag$(tput sgr 0) as printer"
                     echo "$(tput setaf 3)This firmware file isn't correct for this printer!!!$(tput sgr 0)"
-                    echo 
+                    echo
                     MK404_PRINTER=$mk404_printer_flag
                     read -p "Press Enter to continue."
                     break
@@ -305,7 +305,7 @@ if [ $TARGET_OS == "linux" ]; then
         failures 2
     fi
 else
-    failures 3 
+    failures 3
 fi
 sleep 2
 }
@@ -347,7 +347,7 @@ fi
 }
 #### End: Check MK404 dependencies
 
-#### Start: Set build environment 
+#### Start: Set build environment
 set_build_env_variables()
 {
 MK404_SCRIPT_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -569,7 +569,7 @@ set_build_env_variables
 output_useful_data
 get_MK404
 
-# 
+#
 cd $MK404_PATH
 
 check_for_updates
