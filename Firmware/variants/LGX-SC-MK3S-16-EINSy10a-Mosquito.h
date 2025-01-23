@@ -68,6 +68,7 @@
 #define Y_MIN_POS -4 //orig -4
 #define Z_MAX_POS 210
 #define Z_MIN_POS 0.15
+#define Z_MAX_POS_XYZ_CALIBRATION_CORRECTION 7
 
 // Canceled home position
 #define X_CANCEL_POS 50
@@ -322,7 +323,7 @@
 #define HEATER_0_MAXTEMP 305
 #endif
 #define BED_MAXTEMP 125
-#define AMBIENT_MAXTEMP 100
+#define AMBIENT_MAXTEMP 80
 
 #if defined(E3D_PT100_EXTRUDER_WITH_AMP) || defined(E3D_PT100_EXTRUDER_NO_AMP)
 // Define PID constants for extruder with PT100
