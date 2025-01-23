@@ -7,7 +7,7 @@
 // SPDX-License-Identifier: BSL-1.0
 
 /**\file
- * Test that the user can define custom fallbackStringifier 
+ * Test that the user can define custom fallbackStringifier
  *
  * This is done by defining a custom fallback stringifier that prints
  * out a specific string, and then asserting (to cause stringification)

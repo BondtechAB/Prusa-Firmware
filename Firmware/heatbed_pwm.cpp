@@ -11,7 +11,7 @@
 // Doing this at higher frequency than the bed "loudspeaker" can handle makes the click barely audible.
 // Technically:
 // timer0 is set to fast PWM mode at 62.5kHz (timer0 is linked to the bed heating pin) (zero prescaler)
-// To keep the bed switching at 30Hz - we don't want the PWM running at 62kHz all the time 
+// To keep the bed switching at 30Hz - we don't want the PWM running at 62kHz all the time
 // since it would burn the heatbed's MOSFET:
 // 16MHz/256 levels of PWM duty gives us 62.5kHz
 // 62.5kHz/256 gives ~244Hz, that is still too fast - 244/8 gives ~30Hz, that's what we need
@@ -19,9 +19,9 @@
 // The finite automaton is running in the ISR(TIMER0_OVF_vect)
 
 // 2019-08-14 update: the original algorithm worked very well, however there were 2 regressions:
-// 1. 62kHz ISR requires considerable amount of processing power, 
+// 1. 62kHz ISR requires considerable amount of processing power,
 //    USB transfer speed dropped by 20%, which was most notable when doing short G-code segments.
-// 2. Some users reported TLed PSU started clicking when running at 120V/60Hz. 
+// 2. Some users reported TLed PSU started clicking when running at 120V/60Hz.
 //    This looks like the original algorithm didn't maintain base PWM 30Hz, but only 15Hz
 // To address both issues, there is an improved approach based on the idea of leveraging
 // different CLK prescalers in some automaton states - i.e. when holding LOW or HIGH on the output pin,
@@ -40,7 +40,7 @@
 // - it can toggle unnoticed, which will result in bed clicking again.
 // That's why there are special transition states ZERO_TO_RISE and ONE_TO_FALL, which enable the
 // counter change its operation atomically and without artefacts on the output pin.
-// The resulting signal on the output pin was checked with an osciloscope. 
+// The resulting signal on the output pin was checked with an osciloscope.
 // If there are any change requirements in the future, the signal must be checked with an osciloscope again,
 // ad-hoc changes may completely screw things up!
 
@@ -57,7 +57,7 @@ enum class States : uint8_t {
 	ZERO_TO_RISE,  ///< metastate allowing the timer change its state atomically without artefacts on the output pin
 	RISE,          ///< 16 fast PWM cycles with increasing duty up to steady ON
 	RISE_TO_ONE,   ///< metastate allowing the timer change its state atomically without artefacts on the output pin
-	ONE,           ///< steady 1 (ON), no change for the whole period 
+	ONE,           ///< steady 1 (ON), no change for the whole period
 	FALL,          ///< 16 fast PWM cycles with decreasing duty down to steady OFF
 	FALL_TO_ZERO   ///< metastate allowing the timer change its state atomically without artefacts on the output pin
 };
@@ -92,7 +92,7 @@ static const uint8_t fastShift = 4;
 /// increment slowCounter by 1
 /// but use less bits of soft PWM - something like soft_pwm_bed >> 2
 /// that may further reduce the CPU cycles required by the bed heating automaton
-/// Due to the nature of bed heating the reduced PID precision may not be a major issue, however doing 8x less ISR(timer0_ovf) may significantly improve the performance 
+/// Due to the nature of bed heating the reduced PID precision may not be a major issue, however doing 8x less ISR(timer0_ovf) may significantly improve the performance
 static const uint8_t slowInc = 1;
 
 ISR(TIMER0_OVF_vect)          // timer compare interrupt service routine
@@ -177,6 +177,6 @@ ISR(TIMER0_OVF_vect)          // timer compare interrupt service routine
 		TCNT0 = 128;
 		OCR0B = 255;
 		TCCR0B = (1 << CS01); // change prescaler to 8, i.e. 7.8kHz
-		break;		
+		break;
     }
 }

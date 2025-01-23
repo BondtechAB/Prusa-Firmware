@@ -68,6 +68,9 @@
 #define Z_MAX_POS 210
 #define Z_MIN_POS 0.15
 
+// Z height correction value
+#define Z_MAX_POS_XYZ_CALIBRATION_CORRECTION 9
+
 // Canceled home position
 #define X_CANCEL_POS 50
 #define Y_CANCEL_POS 190
@@ -119,7 +122,7 @@
 
 //Crash detection
 #define CRASHDET_TIMER 45 //seconds
-#define CRASHDET_COUNTER_MAX 3 
+#define CRASHDET_COUNTER_MAX 3
 
 // New XYZ calibration
 #define NEW_XYZCAL
@@ -151,7 +154,7 @@
 #define FILAMENT_SENSOR_TYPE FSENSOR_IR_ANALOG
 #define FSENSOR_PROBING
 
-// Backlash - 
+// Backlash -
 //#define BACKLASH_X
 //#define BACKLASH_Y
 
@@ -177,15 +180,15 @@
 #define DEBUG_DCODES //D codes
 #define DEBUG_STACK_MONITOR        //Stack monitor in stepper ISR
 //#define DEBUG_CRASHDET_COUNTERS  //Display crash-detection counters on LCD
-//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable 
-//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output 
+//#define DEBUG_RESUME_PRINT       //Resume/save print debug enable
+//#define DEBUG_UVLO_AUTOMATIC_RECOVER // Power panic automatic recovery debug output
 //#define DEBUG_DISABLE_XMINLIMIT  //x min limit ignored
 //#define DEBUG_DISABLE_XMAXLIMIT  //x max limit ignored
 //#define DEBUG_DISABLE_YMINLIMIT  //y min limit ignored
 //#define DEBUG_DISABLE_YMAXLIMIT  //y max limit ignored
 //#define DEBUG_DISABLE_ZMINLIMIT  //z min limit ignored
 //#define DEBUG_DISABLE_ZMAXLIMIT  //z max limit ignored
-#define DEBUG_DISABLE_STARTMSGS //no startup messages 
+#define DEBUG_DISABLE_STARTMSGS //no startup messages
 //#define DEBUG_DISABLE_MINTEMP   //mintemp error ignored
 //#define DEBUG_DISABLE_SWLIMITS  //sw limits ignored
 //#define DEBUG_DISABLE_LCD_STATUS_LINE  //empty four lcd line
@@ -321,7 +324,7 @@
 #define HEATER_0_MAXTEMP 410
 #endif
 #define BED_MAXTEMP 125
-#define AMBIENT_MAXTEMP 100
+#define AMBIENT_MAXTEMP 80
 
 #if defined(E3D_PT100_EXTRUDER_WITH_AMP) || defined(E3D_PT100_EXTRUDER_NO_AMP)
 // Define PID constants for extruder with PT100
@@ -427,7 +430,13 @@
  HOST FEATURES
  *------------------------------------*/
 
-//#define HOST_SHUTDOWN              //Host supports "//action:shutdown" feature
+// Uncomment if the host supports '//action:shutdown'. It will add "Shutdown host" to the LCD meun.
+//#define HOST_SHUTDOWN
+
+// Uncomment if the host doesn't support '//action:ready' & '//action:notready'.
+// This will replace the "Set Ready"/"Set not Ready" LCD menu entry with
+// "Print from host" and send '//action:start' instead.
+//#define REPLACE_SETREADY
 
 /*------------------------------------
  MOTOR CURRENT SETTINGS
@@ -478,9 +487,9 @@
 //
 //#define BED_LIMIT_SWITCHING
 
-// This sets the max power delivered to the bed, and replaces the HEATER_BED_DUTY_CYCLE_DIVIDER option.
+// This sets the max power delivered to the bed.
 // all forms of bed control obey this (PID, bang-bang, bang-bang with hysteresis)
-// setting this to anything other than 255 enables a form of PWM to the bed just like HEATER_BED_DUTY_CYCLE_DIVIDER did,
+// setting this to anything other than 255 enables a form of PWM to the bed,
 // so you shouldn't use it unless you are OK with PWM on your bed.  (see the comment on enabling PIDTEMPBED)
 #define MAX_BED_POWER 255 // limits duty cycle to bed; 255=full current
 
@@ -652,7 +661,7 @@
 // "dropsegments" steps long. All the above rules still need to apply.
 #define UVLO_TINY_Z_AXIS_SHIFT 0.16
 // If power panic occured, and the current temperature is higher then target temperature before interrupt minus this offset, print will be recovered automatically.
-#define AUTOMATIC_UVLO_BED_TEMP_OFFSET 5 
+#define AUTOMATIC_UVLO_BED_TEMP_OFFSET 5
 
 #define HEATBED_V2
 

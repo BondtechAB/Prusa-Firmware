@@ -248,7 +248,7 @@ const char* lang_get_name_by_code(uint16_t code)
 #endif // COMMUNITY_LANG_GROUP1_RO
 
 //Use the 3 lines below as a template and replace 'QR' and 'New language'
-//#ifdef COMMUNITY_LANG_GROUP1_QR 
+//#ifdef COMMUNITY_LANG_GROUP1_QR
 //	case LANG_CODE_QR: return _n("New language"); //community contribution
 //#endif // COMMUNITY_LANG_GROUP1_QR
 #endif // COMMUNITY_LANGUAGE_SUPPORT

@@ -1,4 +1,4 @@
-/// @file protocol.h
+/// @file mmu2_protocol.h
 #pragma once
 #include <stdint.h>
 #include "mmu2_crc.h"
@@ -8,6 +8,7 @@ namespace modules {
 /// @brief The MMU communication protocol implementation and related stuff.
 ///
 /// See description of the new protocol in the MMU 2021 doc
+
 namespace protocol {
 
 /// Definition of request message codes
@@ -179,17 +180,9 @@ public:
     /// @returns number of bytes written into txbuff
     static uint8_t EncodeResponseReadFINDA(const RequestMsg &msg, uint8_t findaValue, uint8_t *txbuff);
 
-
-
-
-
-
-
-
     /// Encode response to Query operation status
     /// @param msg source request message for this response
-    /// @param code status of operation (Processing, Error, Finished)
-    /// @param value related to status of operation(e.g. error code or progress)
+    /// @param rcs status of operation (Processing, Error, Finished)
     /// @param txbuff where to format the message
     /// @returns number of bytes written into txbuff
     static uint8_t EncodeResponseQueryOperation(const RequestMsg &msg, ResponseCommandStatus rcs, uint8_t *txbuff);

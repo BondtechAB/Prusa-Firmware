@@ -90,7 +90,7 @@ namespace old_code
 static std::string SERIAL_BUFFER = "";
 
 void SERIAL_ECHO(std::string s){
-	SERIAL_BUFFER += s; 
+	SERIAL_BUFFER += s;
 }
 
 void SERIAL_ECHO(int i){
@@ -189,7 +189,7 @@ void prusa_statistics(int _message, uint8_t _fil_nr) {
 	{
 
 	case 0: // default message
-		if (busy_state == PAUSED_FOR_USER) 
+		if (busy_state == PAUSED_FOR_USER)
 		{
 			SERIAL_ECHO("{");
 			prusa_stat_printerstatus(15);
@@ -328,7 +328,7 @@ void prusa_statistics(int _message, uint8_t _fil_nr) {
 		SERIAL_ECHOLN("}");
 		status_number = 5;
         break;
-	
+
 	case 90: // Error - Thermal Runaway
 		SERIAL_ECHO("{[ERR:1]");
 		prusa_stat_farm_number();
@@ -357,7 +357,7 @@ void prusa_statistics(int _message, uint8_t _fil_nr) {
 		SERIAL_ECHO(farm_no);
 		SERIAL_ECHO("]");
         SERIAL_ECHOLN("}");
-            
+
         break;
 	}
 
@@ -372,7 +372,7 @@ namespace new_code
 static std::string SERIAL_BUFFER = "";
 
 void SERIAL_ECHO(std::string s){
-	SERIAL_BUFFER += s; 
+	SERIAL_BUFFER += s;
 }
 
 void SERIAL_ECHO(int i){
@@ -486,8 +486,8 @@ void prusa_statistics(int _message, uint8_t _fil_nr) {
 	{
 
 	case 0: // default message
-		if (busy_state == PAUSED_FOR_USER) 
-		{   
+		if (busy_state == PAUSED_FOR_USER)
+		{
 			prusa_statistics_case0(15);
 		}
 		else if (isPrintPaused)
@@ -600,7 +600,7 @@ void prusa_statistics(int _message, uint8_t _fil_nr) {
 		prusa_stat_farm_number();
 		status_number = 5;
         break;
-	
+
 	case 90: // Error - Thermal Runaway
 		prusa_statistics_err('1');
 		break;
@@ -620,10 +620,10 @@ void prusa_statistics(int _message, uint8_t _fil_nr) {
 		SERIAL_ECHO("[PFN:");
 		SERIAL_ECHO(farm_no);
 		SERIAL_ECHO(']');
-            
+
         break;
 	}
-	SERIAL_ECHOLN('}');	
+	SERIAL_ECHOLN('}');
 
 }
 
@@ -656,14 +656,14 @@ int SERIALS_COMPARE(){
 	if(VERBOSE_MODE){
 		std::cout << "Comparing: \n";
 		std::cout << old_code::SERIAL_BUFFER << "\n";
-		std::cout << new_code::SERIAL_BUFFER << "\n";	
+		std::cout << new_code::SERIAL_BUFFER << "\n";
 	}
-	
+
 	return old_code::SERIAL_BUFFER.compare(new_code::SERIAL_BUFFER);
 }
 
 
-// ---------------  TEST CASES ---------------- // 
+// ---------------  TEST CASES ---------------- //
 
 TEST_CASE("Serials compare ignore newline at the end", "[helper]")
 {
@@ -715,7 +715,7 @@ TEST_CASE("Printer temperatures are shown", "[prusa_stats]")
 
 	old_code::prusa_stat_temperatures();
 	new_code::prusa_stat_temperatures();
-	
+
 	INFO(SERIALS_SERIALIZE());
 	CHECK(SERIALS_COMPARE() == 0);
 }
@@ -731,9 +731,9 @@ TEST_CASE("Prusa_statistics test", "[prusa_stats]")
 	for(int i = 0; i < size; i++){
 
 		if(VERBOSE_MODE){
-			std::cout << "Testing prusa_statistics(" << std::to_string(i) << ")\n";	
+			std::cout << "Testing prusa_statistics(" << std::to_string(i) << ")\n";
 		}
-		
+
 		switch(i)
 		{
 			case 0: {
@@ -748,7 +748,7 @@ TEST_CASE("Prusa_statistics test", "[prusa_stats]")
 				PAUSED_FOR_USER = 0;
 				isPrintPaused = 1;
 				old_code::prusa_statistics(test_codes[i],0);
-				new_code::prusa_statistics(test_codes[i],0);	
+				new_code::prusa_statistics(test_codes[i],0);
 				CHECK(SERIALS_COMPARE() == 0);
 				SERIALS_RESET();
 
@@ -757,32 +757,32 @@ TEST_CASE("Prusa_statistics test", "[prusa_stats]")
 				old_code::prusa_statistics(test_codes[i],0);
 				new_code::prusa_statistics(test_codes[i],0);
 				CHECK(SERIALS_COMPARE() == 0);
-				SERIALS_RESET();	
+				SERIALS_RESET();
 
 				busy_state = 1;
-				PAUSED_FOR_USER = 0;	
-				isPrintPaused = 0;			
+				PAUSED_FOR_USER = 0;
+				isPrintPaused = 0;
 				IS_SD_PRINTING = 0;
 				loading_flag = 0;
 				old_code::prusa_statistics(test_codes[i],0);
 				new_code::prusa_statistics(test_codes[i],0);
 				CHECK(SERIALS_COMPARE() == 0);
-				SERIALS_RESET();	
+				SERIALS_RESET();
 				break;
 			}
 			case 2: {
 				IS_SD_PRINTING = 1;
 				old_code::prusa_statistics(test_codes[i],0);
-				new_code::prusa_statistics(test_codes[i],0);	
+				new_code::prusa_statistics(test_codes[i],0);
 				CHECK(SERIALS_COMPARE() == 0);
-				SERIALS_RESET();	
+				SERIALS_RESET();
 
 				IS_SD_PRINTING = 0;
 				loading_flag = 0;
 				old_code::prusa_statistics(test_codes[i],0);
-				new_code::prusa_statistics(test_codes[i],0);	
+				new_code::prusa_statistics(test_codes[i],0);
 				CHECK(SERIALS_COMPARE() == 0);
-				SERIALS_RESET();					
+				SERIALS_RESET();
 
 				break;
 			}

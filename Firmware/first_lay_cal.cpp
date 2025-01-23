@@ -93,7 +93,7 @@ bool lay1cal_load_filament(uint8_t filament)
 //! @brief Print intro line
 //! @param extraPurgeNeeded false if the first MMU-related "G1 E29" have to be skipped because the nozzle is already full of filament
 //! @param layer_height the height of the calibration layer
-//! @param extrusion_width the width of the extrusion layer 
+//! @param extrusion_width the width of the extrusion layer
 void lay1cal_intro_line(bool extraPurgeNeeded, float layer_height, float extrusion_width)
 {
     static const char cmd_intro_mmu_3[] PROGMEM = "G1 X55 E29 F1073";

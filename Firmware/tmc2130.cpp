@@ -58,7 +58,7 @@ union ChopConfU {
 		uint32_t hend : 4;     // HEND hysteresis low value (chm = 0) or OFFSET sine wave offset (chm = 1)
 		uint32_t fd : 1;
 		uint32_t disfdcc : 1;  // Fast decay mode
-		uint32_t rndtf : 1;    // Random TOFF time 
+		uint32_t rndtf : 1;    // Random TOFF time
 		uint32_t chm : 1;      // Chopper mode
 		uint32_t tbl : 2;      // Blank time select
 		uint32_t vsense : 1;   // Sense resistor voltage based current scaling
@@ -322,7 +322,7 @@ void tmc2130_init(TMCInitParams params)
 	SET_OUTPUT(Y_TMC2130_CS);
 	SET_OUTPUT(Z_TMC2130_CS);
 	SET_OUTPUT(E0_TMC2130_CS);
-	
+
 	SET_INPUT(X_TMC2130_DIAG);
 	SET_INPUT(Y_TMC2130_DIAG);
 	SET_INPUT(Z_TMC2130_DIAG);
@@ -331,7 +331,7 @@ void tmc2130_init(TMCInitParams params)
 	WRITE(Y_TMC2130_DIAG,HIGH);
 	WRITE(Z_TMC2130_DIAG,HIGH);
 	WRITE(E0_TMC2130_DIAG,HIGH);
-	
+
 	for (uint_least8_t axis = 0; axis < E_AXIS; axis++) // X Y Z axes
 	{
 		tmc2130_XYZ_reg_init(axis);

@@ -301,7 +301,7 @@ if (ANDROID)
     target_link_libraries(Catch2 INTERFACE log)
 endif()
 
-set_target_properties(Catch2 PROPERTIES 
+set_target_properties(Catch2 PROPERTIES
                           DEBUG_POSTFIX "d"
                                 VERSION ${PROJECT_VERSION}
                               SOVERSION ${PROJECT_VERSION})
@@ -366,7 +366,7 @@ if (NOT_SUBPROJECT)
         Catch2WithMain
       EXPORT
         Catch2Targets
-      LIBRARY DESTINATION 
+      LIBRARY DESTINATION
         ${CMAKE_INSTALL_LIBDIR}
       ARCHIVE DESTINATION
         ${CMAKE_INSTALL_LIBDIR}

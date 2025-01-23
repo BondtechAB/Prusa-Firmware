@@ -45,7 +45,7 @@ int SdFatUtil::FreeRam() {
 #endif  // __arm
 
 void SdFatUtil::set_stack_guard()
-{	
+{
 	uint32_t *stack_guard;
 
 	stack_guard = (uint32_t*)(&__bss_end + STACK_GUARD_MARGIN);

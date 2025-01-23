@@ -116,10 +116,6 @@ static_assert (EXTRUDERS == 1, "ConfigurationStore M500_conf not implemented for
 static_assert (NUM_AXIS == 4, "ConfigurationStore M500_conf not implemented for more axis."
         "Fix axis_steps_per_mm max_feedrate_normal max_acceleration_mm_per_s2_normal max_jerk max_feedrate_silent"
         " max_acceleration_mm_per_s2_silent array size.");
-#ifdef ENABLE_AUTO_BED_LEVELING
-static_assert (false, "zprobe_zoffset was not initialized in printers in field to -(Z_PROBE_OFFSET_FROM_EXTRUDER), so it contains"
-        "0.0, if this is not acceptable, increment EEPROM_VERSION to force use default_conf");
-#endif
 
 static_assert (sizeof(M500_conf) == 209, "sizeof(M500_conf) has changed, ensure that EEPROM_VERSION has been incremented, "
         "or if you added members in the end of struct, ensure that historically uninitialized values will be initialized."
@@ -206,13 +202,17 @@ bool Config_RetrieveSettings()
         eeprom_init_default_byte(&EEPROM_M500_base->n_arc_correction, pgm_read_byte(&default_conf.n_arc_correction));
         eeprom_init_default_word(&EEPROM_M500_base->min_arc_segments, pgm_read_word(&default_conf.min_arc_segments));
         eeprom_init_default_word(&EEPROM_M500_base->arc_segments_per_sec, pgm_read_word(&default_conf.arc_segments_per_sec));
-        
+
         // Initialize the travel_acceleration in eeprom if not already
         eeprom_init_default_float(&EEPROM_M500_base->travel_acceleration, pgm_read_float(&default_conf.travel_acceleration));
 
         // Initialize the max_feedrate_silent and max_acceleration_mm_per_s2_silent in eeprom if not already
         eeprom_init_default_block(&EEPROM_M500_base->max_feedrate_silent, sizeof(EEPROM_M500_base->max_feedrate_silent), default_conf.max_feedrate_silent);
         eeprom_init_default_block(&EEPROM_M500_base->max_acceleration_mm_per_s2_silent, sizeof(EEPROM_M500_base->max_acceleration_mm_per_s2_silent), default_conf.max_acceleration_mm_per_s2_silent);
+
+#ifdef TMC2130
+        eeprom_init_default_block(&EEPROM_M500_base->axis_ustep_resolution, sizeof(EEPROM_M500_base->axis_ustep_resolution), default_conf.axis_ustep_resolution);
+#endif // TMC2130
 
         // load the CS to RAM
         eeprom_read_block(reinterpret_cast<uint8_t*>(&cs), reinterpret_cast<uint8_t*>(EEPROM_M500_base), sizeof(cs));
@@ -230,11 +230,6 @@ bool Config_RetrieveSettings()
       if (cs.max_acceleration_mm_per_s2_silent[j] > SILENT_MAX_ACCEL_XY)
         cs.max_acceleration_mm_per_s2_silent[j] = SILENT_MAX_ACCEL_XY;
     }
-        
-    if(cs.axis_ustep_resolution[X_AXIS] == 0xff){ cs.axis_ustep_resolution[X_AXIS] = TMC2130_USTEPS_XY; }
-    if(cs.axis_ustep_resolution[Y_AXIS] == 0xff){ cs.axis_ustep_resolution[Y_AXIS] = TMC2130_USTEPS_XY; }
-    if(cs.axis_ustep_resolution[Z_AXIS] == 0xff){ cs.axis_ustep_resolution[Z_AXIS] = TMC2130_USTEPS_Z; }
-    if(cs.axis_ustep_resolution[E_AXIS] == 0xff){ cs.axis_ustep_resolution[E_AXIS] = TMC2130_USTEPS_E; }
 
     tmc2130_set_res(X_AXIS, cs.axis_ustep_resolution[X_AXIS]);
     tmc2130_set_res(Y_AXIS, cs.axis_ustep_resolution[Y_AXIS]);
@@ -272,7 +267,7 @@ void Config_ResetDefault()
 
   // steps per sq second need to be updated to agree with the units per sq second
     reset_acceleration_rates();
-    
+
 #ifdef PIDTEMP
     updatePID();
 #endif//PIDTEMP

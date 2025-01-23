@@ -36,7 +36,7 @@ def check_licences():
     roots = ['src/catch2', 'tests']
     for root in roots:
         failed += check_licences_in_path(root)
-    
+
     if failed:
         print('{} files are missing licence'.format(failed))
         sys.exit(1)

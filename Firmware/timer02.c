@@ -16,11 +16,11 @@ void timer0_init(void)
 	CRITICAL_SECTION_START;
 
 	TCNT0  = 0;
-	// Fast PWM duty (0-255). 
+	// Fast PWM duty (0-255).
 	// Due to invert mode (following rows) the duty is set to 255, which means zero all the time (bed not heating)
 	OCR0B = 255;
 	// Set fast PWM mode and inverting mode.
-	TCCR0A = (1 << WGM01) | (1 << WGM00) | (1 << COM0B1) | (1 << COM0B0);  
+	TCCR0A = (1 << WGM01) | (1 << WGM00) | (1 << COM0B1) | (1 << COM0B0);
 	TCCR0B = (1 << CS01);    // CLK/8 prescaling
 	TIMSK0 |= (1 << TOIE0);  // enable timer overflow interrupt
 
@@ -119,7 +119,7 @@ unsigned long micros2(void)
 	if ((TIFR & _BV(TOV2)) && (t < 255))
 		m++;
 #endif
-	SREG = oldSREG;	
+	SREG = oldSREG;
 	return ((m << 8) + t) * (64 / clockCyclesPerMicrosecond());
 }
 

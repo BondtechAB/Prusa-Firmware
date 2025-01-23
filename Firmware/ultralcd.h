@@ -47,11 +47,10 @@ void lcd_setalertstatuspgm(const char* message, uint8_t severity = LCD_STATUS_AL
 uint8_t get_message_level();
 void lcd_reset_alert_level();
 
-void lcd_pick_babystep();
 uint8_t lcd_alright();
 void show_preheat_nozzle_warning();
-void lcd_wait_interact();
-void lcd_loading_filament();
+void lcd_wait_interact(const char* filament_name);
+void lcd_loading_filament(const char* filament_name);
 void lcd_change_success();
 void lcd_loading_color();
 void lcd_sdcard_stop();
@@ -94,7 +93,6 @@ extern bool lcd_wait_for_click_delay(uint16_t nDelay);
 void lcd_show_choices_prompt_P(uint8_t selected, const char *first_choice, const char *second_choice, uint8_t second_col, const char *third_choice = nullptr);
 extern void lcd_show_fullscreen_message_and_wait_P(const char *msg);
 extern uint8_t lcd_show_yes_no_and_wait(bool allow_timeouting = true, uint8_t default_selection = LCD_MIDDLE_BUTTON_CHOICE);
-extern uint8_t lcd_show_fullscreen_message_yes_no_and_wait_P(const char *msg, bool allow_timeouting = true, uint8_t default_selection = LCD_MIDDLE_BUTTON_CHOICE);
 extern uint8_t lcd_show_multiscreen_message_with_choices_and_wait_P(
     const char * const msg, bool allow_timeouting, uint8_t default_selection,
     const char * const first_choice, const char * const second_choice, const char * const third_choice = nullptr,
@@ -222,6 +220,9 @@ void lcd_temp_calibration_set();
 void lcd_language();
 #endif
 
+void lcd_z_calibration_prompt(bool allowTimeouting);
+void prompt_steel_sheet_on_bed(bool wantedState);
+
 void lcd_wizard();
 
 //! @brief Wizard state
@@ -261,5 +262,7 @@ extern void lcd_heat_bed_on_load_toggle();
 #ifdef COMMUNITY_PREVENT_OOZE
 extern void retract_for_ooze_prevention();
 #endif //COMMUNITY_PREVENT_OOZE
+
+extern void sendHostNotification_P(const char* message);
 
 #endif //ULTRALCD_H

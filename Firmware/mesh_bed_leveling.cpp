@@ -14,7 +14,7 @@ void mesh_bed_leveling::reset() {
 float mesh_bed_leveling::get_z(float x, float y) {
     int   i, j;
     float s, t;
-    
+
     i = int(floor((x - (BED_X0 + X_PROBE_OFFSET_FROM_EXTRUDER)) / x_mesh_density));
     if (i < 0) {
         i = 0;
@@ -36,7 +36,7 @@ float mesh_bed_leveling::get_z(float x, float y) {
         }
         t = (y - get_y(j)) / y_mesh_density;
     }
-    
+
     float si = 1.f-s;
     float z0 = si * z_values[j  ][i] + s * z_values[j  ][i+1];
     float z1 = si * z_values[j+1][i] + s * z_values[j+1][i+1];
@@ -60,7 +60,7 @@ void mesh_bed_leveling::upsample_3x3()
                 if (!isnan(z_values[j][i]))
                     continue;
                 float x = get_x(i);
-                z_values[j][i] = 
+                z_values[j][i] =
                     z_values[j][idx0] * (x - x1) * (x - x2) / ((x0 - x1) * (x0 - x2)) +
                     z_values[j][idx1] * (x - x0) * (x - x2) / ((x1 - x0) * (x1 - x2)) +
                     z_values[j][idx2] * (x - x0) * (x - x1) / ((x2 - x0) * (x2 - x1));
@@ -78,7 +78,7 @@ void mesh_bed_leveling::upsample_3x3()
                 if (!isnan(z_values[j][i]))
                     continue;
                 float y = get_y(j);
-                z_values[j][i] = 
+                z_values[j][i] =
                     z_values[idx0][i] * (y - y1) * (y - y2) / ((y0 - y1) * (y0 - y2)) +
                     z_values[idx1][i] * (y - y0) * (y - y2) / ((y1 - y0) * (y1 - y2)) +
                     z_values[idx2][i] * (y - y0) * (y - y1) / ((y2 - y0) * (y2 - y1));

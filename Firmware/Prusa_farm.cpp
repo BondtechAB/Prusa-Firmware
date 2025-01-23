@@ -8,6 +8,7 @@
 #include "ultralcd.h"
 #include "Filament_sensor.h"
 #include "language.h"
+#include "lcd.h"
 #include "stopwatch.h"
 
 #ifdef PRUSA_FARM
@@ -132,7 +133,7 @@ static void lcd_connect_printer() {
 
     int i = 0;
     int t = 0;
-    lcd_puts_at_P(0, 0, PSTR("Connect printer to")); 
+    lcd_puts_at_P(0, 0, PSTR("Connect printer to"));
     lcd_puts_at_P(0, 1, PSTR("monitoring or hold"));
     lcd_puts_at_P(0, 2, PSTR("the knob to continue"));
     while (no_response) {
@@ -145,7 +146,7 @@ static void lcd_connect_printer() {
             t = 0;
         }
         if (READ(BTN_ENC)) { //if button is not pressed
-            i = 0; 
+            i = 0;
             lcd_puts_at_P(0, 3, PSTR("                    "));
         }
         if (i != 0)
@@ -232,7 +233,7 @@ void prusa_statistics(uint8_t _message) {
     const uint8_t _fil_nr = 0;
     if (!farm_mode)
         return;
-    
+
     switch (_message) {
     case 0: // default message
         if (busy_state == PAUSED_FOR_USER) {
@@ -389,7 +390,7 @@ void prusa_statistics_update_from_lcd_update() {
 }
 
 void farm_mode_init() {
-    farm_mode = eeprom_init_default_byte((uint8_t*)EEPROM_FARM_MODE, 0); 
+    farm_mode = eeprom_init_default_byte((uint8_t*)EEPROM_FARM_MODE, 0);
     if (farm_mode) {
         no_response = true; //we need confirmation by recieving PRUSA thx
         prusa_statistics(8);
@@ -410,7 +411,7 @@ void farm_mode_init() {
 bool farm_prusa_code_seen() {
     if (!farm_mode)
         return false;
-    
+
     if (code_seen_P(PSTR("PRN"))) { // PRUSA PRN
         printf_P(_N("%u"), status_number);
     }
@@ -441,7 +442,7 @@ bool farm_prusa_code_seen() {
     else {
         return false;
     }
-    
+
     return true;
 }
 

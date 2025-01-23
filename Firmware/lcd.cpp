@@ -22,8 +22,6 @@
 	#define LCD_8BIT
 #endif
 
-// #define VT100
-
 // commands
 #define LCD_CLEARDISPLAY 0x01
 #define LCD_RETURNHOME 0x02
@@ -77,10 +75,6 @@ static uint8_t lcd_displaymode = 0;
 uint8_t lcd_currline;
 static uint8_t lcd_ddram_address; // no need for preventing ddram overflow
 
-#ifdef VT100
-uint8_t lcd_escape[8];
-#endif
-
 struct CustomCharacter {
     uint8_t colByte;
     uint8_t rowData[4];
@@ -95,30 +89,11 @@ static const CustomCharacter Font[] PROGMEM = {
 #define CUSTOM_CHARACTERS_CNT (sizeof(Font) / sizeof(Font[0]))
 
 static void lcd_display(void);
-
-#if 0
-static void lcd_no_display(void);
-static void lcd_no_cursor(void);
-static void lcd_cursor(void);
-static void lcd_no_blink(void);
-static void lcd_blink(void);
-static void lcd_scrollDisplayLeft(void);
-static void lcd_scrollDisplayRight(void);
-static void lcd_leftToRight(void);
-static void lcd_rightToLeft(void);
-static void lcd_autoscroll(void);
-static void lcd_no_autoscroll(void);
-#endif
-
 static void lcd_print_custom(uint8_t c);
 static void lcd_invalidate_custom_characters();
 
-#ifdef VT100
-void lcd_escape_write(uint8_t chr);
-#endif
-
 static void lcd_pulseEnable(void)
-{  
+{
 	WRITE(LCD_PINS_ENABLE,HIGH);
 	_delay_us(1);    // enable pulse must be >450ns
 	WRITE(LCD_PINS_ENABLE,LOW);
@@ -136,7 +111,7 @@ static void lcd_writebits(uint8_t value)
 	WRITE(LCD_PINS_D5, value & 0x20);
 	WRITE(LCD_PINS_D6, value & 0x40);
 	WRITE(LCD_PINS_D7, value & 0x80);
-	
+
 	lcd_pulseEnable();
 }
 
@@ -164,16 +139,9 @@ static void lcd_write(uint8_t value)
 	if (value == '\n') {
 		if (lcd_currline > 3) lcd_currline = -1;
 		lcd_set_cursor(0, lcd_currline + 1); // LF
-	}
-	else if ((value >= 0x80) && (value < (0x80 + CUSTOM_CHARACTERS_CNT))) {
+	} else if ((value >= 0x80) && (value < (0x80 + CUSTOM_CHARACTERS_CNT))) {
 		lcd_print_custom(value);
-	}
-	#ifdef VT100
-	else if (lcd_escape[0] || (value == '\e')) {
-		lcd_escape_write(value);
-	}
-	#endif
-	else {
+	} else {
 		lcd_send(value, HIGH);
 		lcd_ddram_address++; // no need for preventing ddram overflow
 	}
@@ -199,7 +167,7 @@ static void lcd_begin(uint8_t clear)
 	// finally, set # lines, font size, etc.0
 	lcd_command(LCD_FUNCTIONSET | lcd_displayfunction);
 	// turn the display on with no cursor or blinking default
-	lcd_displaycontrol = LCD_CURSOROFF | LCD_BLINKOFF;  
+	lcd_displaycontrol = LCD_CURSOROFF | LCD_BLINKOFF;
 	lcd_display();
 	// clear it off
 	if (clear) lcd_clear();
@@ -207,10 +175,6 @@ static void lcd_begin(uint8_t clear)
 	lcd_displaymode = LCD_ENTRYLEFT | LCD_ENTRYSHIFTDECREMENT;
 	// set the entry mode
 	lcd_command(LCD_ENTRYMODESET | lcd_displaymode);
-	
-	#ifdef VT100
-	lcd_escape[0] = 0;
-	#endif
 }
 
 static int lcd_putchar(char c, FILE *)
@@ -235,12 +199,12 @@ void lcd_init(void)
 	SET_OUTPUT(LCD_PINS_D5);
 	SET_OUTPUT(LCD_PINS_D6);
 	SET_OUTPUT(LCD_PINS_D7);
-	
+
 #ifdef LCD_8BIT
 	lcd_displayfunction |= LCD_8BITMODE;
 #endif
 	lcd_displayfunction |= LCD_2LINE;
-	_delay_us(50000); 
+	_delay_us(50000);
 	lcd_begin(1); //first time init
 	fdev_setup_stream(lcdout, lcd_putchar, NULL, _FDEV_SETUP_WRITE); //setup lcdout stream
 }
@@ -277,83 +241,6 @@ void lcd_display(void)
     lcd_displaycontrol |= LCD_DISPLAYON;
     lcd_command(LCD_DISPLAYCONTROL | lcd_displaycontrol);
 }
-
-#if 0
-void lcd_no_display(void)
-{
-	lcd_displaycontrol &= ~LCD_DISPLAYON;
-	lcd_command(LCD_DISPLAYCONTROL | lcd_displaycontrol);
-}
-#endif
-
-#ifdef VT100 //required functions for VT100
-// Turns the underline cursor on/off
-void lcd_no_cursor(void)
-{
-	lcd_displaycontrol &= ~LCD_CURSORON;
-	lcd_command(LCD_DISPLAYCONTROL | lcd_displaycontrol);
-}
-
-void lcd_cursor(void)
-{
-	lcd_displaycontrol |= LCD_CURSORON;
-	lcd_command(LCD_DISPLAYCONTROL | lcd_displaycontrol);
-}
-#endif
-
-#if 0
-// Turn on and off the blinking cursor
-void lcd_no_blink(void)
-{
-	lcd_displaycontrol &= ~LCD_BLINKON;
-	lcd_command(LCD_DISPLAYCONTROL | lcd_displaycontrol);
-}
-
-void lcd_blink(void)
-{
-	lcd_displaycontrol |= LCD_BLINKON;
-	lcd_command(LCD_DISPLAYCONTROL | lcd_displaycontrol);
-}
-
-// These commands scroll the display without changing the RAM
-void lcd_scrollDisplayLeft(void)
-{
-	lcd_command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVELEFT);
-}
-
-void lcd_scrollDisplayRight(void)
-{
-	lcd_command(LCD_CURSORSHIFT | LCD_DISPLAYMOVE | LCD_MOVERIGHT);
-}
-
-// This is for text that flows Left to Right
-void lcd_leftToRight(void)
-{
-	lcd_displaymode |= LCD_ENTRYLEFT;
-	lcd_command(LCD_ENTRYMODESET | lcd_displaymode);
-}
-
-// This is for text that flows Right to Left
-void lcd_rightToLeft(void)
-{
-	lcd_displaymode &= ~LCD_ENTRYLEFT;
-	lcd_command(LCD_ENTRYMODESET | lcd_displaymode);
-}
-
-// This will 'right justify' text from the cursor
-void lcd_autoscroll(void)
-{
-	lcd_displaymode |= LCD_ENTRYSHIFTINCREMENT;
-	lcd_command(LCD_ENTRYMODESET | lcd_displaymode);
-}
-
-// This will 'left justify' text from the cursor
-void lcd_no_autoscroll(void)
-{
-	lcd_displaymode &= ~LCD_ENTRYSHIFTINCREMENT;
-	lcd_command(LCD_ENTRYMODESET | lcd_displaymode);
-}
-#endif
 
 /// @brief set the current LCD row
 /// @param row LCD row number, ranges from 0 to LCD_HEIGHT - 1
@@ -394,10 +281,10 @@ void lcd_createChar_P(uint8_t location, const CustomCharacter *char_p)
 	// The LCD expects the CGRAM data to be sent as pixel data, row by row. Since there are 8 rows per character, 8 bytes need to be sent.
 	// However, storing the data in the flash as the LCD expects it is wasteful since 3 bits per row are don't care and are not used.
 	// Therefore, flash can be saved if the character data is packed. For the AVR to unpack efficiently and quickly, the following scheme was used:
-	// 
+	//
 	// colbyte data0 data1 data2 data3
 	//    a      b     c     d     e
-	// 
+	//
 	// ** ** ** b7 b6 b5 b4 a0
 	// ** ** ** b3 b2 b1 b0 a1
 	// ** ** ** c7 c6 c5 c4 a2
@@ -406,7 +293,7 @@ void lcd_createChar_P(uint8_t location, const CustomCharacter *char_p)
 	// ** ** ** d3 d2 d1 d0 a5
 	// ** ** ** e7 e6 e5 e4 a6
 	// ** ** ** e3 e2 e1 e0 a7
-	// 
+	//
 	// The bits marked as ** in the unpacked data are don't care and they will contain garbage.
 
 	uint8_t temp;
@@ -414,7 +301,7 @@ void lcd_createChar_P(uint8_t location, const CustomCharacter *char_p)
 	__asm__ __volatile__ (
 		// load colByte
 		"lpm %1, Z+" "\n\t"
-		
+
 		// begin for loop
 		"ldi %0, 8" "\n\t"
 		"mov __zero_reg__, %0" "\n\t"		// use zero_reg as loop counter
@@ -431,7 +318,7 @@ void lcd_createChar_P(uint8_t location, const CustomCharacter *char_p)
 		// end for loop
 		"dec __zero_reg__" "\n\t"
 		"brne forBegin_%=" "\n\t"
-		
+
 		: "=&d" (temp), "=&r" (colByte)
 		: "z" (char_p), "e" (charmap)
 	);
@@ -442,144 +329,6 @@ void lcd_createChar_P(uint8_t location, const CustomCharacter *char_p)
 	}
 	lcd_command(LCD_SETDDRAMADDR | lcd_ddram_address); // no need for masking the address
 }
-
-#ifdef VT100
-
-//Supported VT100 escape codes:
-//EraseScreen  "\x1b[2J"
-//CursorHome   "\x1b[%d;%dH"
-//CursorShow   "\x1b[?25h"
-//CursorHide   "\x1b[?25l"
-void lcd_escape_write(uint8_t chr)
-{
-#define escape_cnt (lcd_escape[0])        //escape character counter
-#define is_num_msk (lcd_escape[1])        //numeric character bit mask
-#define chr_is_num (is_num_msk & 0x01) //current character is numeric
-#define e_2_is_num (is_num_msk & 0x04) //escape char 2 is numeric
-#define e_3_is_num (is_num_msk & 0x08) //...
-#define e_4_is_num (is_num_msk & 0x10)
-#define e_5_is_num (is_num_msk & 0x20)
-#define e_6_is_num (is_num_msk & 0x40)
-#define e_7_is_num (is_num_msk & 0x80)
-#define e2_num (lcd_escape[2] - '0')      //number from character 2
-#define e3_num (lcd_escape[3] - '0')      //number from character 3
-#define e23_num (10*e2_num+e3_num)     //number from characters 2 and 3
-#define e4_num (lcd_escape[4] - '0')      //number from character 4
-#define e5_num (lcd_escape[5] - '0')      //number from character 5
-#define e45_num (10*e4_num+e5_num)     //number from characters 4 and 5
-#define e6_num (lcd_escape[6] - '0')      //number from character 6
-#define e56_num (10*e5_num+e6_num)     //number from characters 5 and 6
-	if (escape_cnt > 1) // escape length > 1 = "\x1b["
-	{
-		lcd_escape[escape_cnt] = chr; // store current char
-		if ((chr >= '0') && (chr <= '9')) // char is numeric
-			is_num_msk |= (1 | (1 << escape_cnt)); //set mask
-		else
-			is_num_msk &= ~1; //clear mask
-	}
-	switch (escape_cnt++)
-	{
-	case 0:
-		if (chr == 0x1b) return;  // escape = "\x1b"
-		break;
-	case 1:
-		is_num_msk = 0x00; // reset 'is number' bit mask
-		if (chr == '[') return; // escape = "\x1b["
-		break;
-	case 2:
-		switch (chr)
-		{
-		case '2': return; // escape = "\x1b[2"
-		case '?': return; // escape = "\x1b[?"
-		default:
-			if (chr_is_num) return; // escape = "\x1b[%1d"
-		}
-		break;
-	case 3:
-		switch (lcd_escape[2])
-		{
-		case '?': // escape = "\x1b[?"
-			if (chr == '2') return; // escape = "\x1b[?2"
-			break;
-		case '2':
-			if (chr == 'J') // escape = "\x1b[2J"
-				{ lcd_clear(); break; } // EraseScreen
-		default:
-			if (e_2_is_num && // escape = "\x1b[%1d"
-				((chr == ';') || // escape = "\x1b[%1d;"
-				chr_is_num)) // escape = "\x1b[%2d"
-				return;
-		}
-		break;
-	case 4:
-		switch (lcd_escape[2])
-		{
-		case '?': // "\x1b[?"
-			if ((lcd_escape[3] == '2') && (chr == '5')) return; // escape = "\x1b[?25"
-			break;
-		default:
-			if (e_2_is_num) // escape = "\x1b[%1d"
-			{
-				if ((lcd_escape[3] == ';') && chr_is_num) return; // escape = "\x1b[%1d;%1d"
-				else if (e_3_is_num && (chr == ';')) return; // escape = "\x1b[%2d;"
-			}
-		}
-		break;
-	case 5:
-		switch (lcd_escape[2])
-		{
-		case '?':
-			if ((lcd_escape[3] == '2') && (lcd_escape[4] == '5')) // escape = "\x1b[?25"
-				switch (chr)
-				{
-				case 'h': // escape = "\x1b[?25h"
-  					lcd_cursor(); // CursorShow
-					break;
-				case 'l': // escape = "\x1b[?25l"
-					lcd_no_cursor(); // CursorHide
-					break;
-				}
-			break;
-		default:
-			if (e_2_is_num) // escape = "\x1b[%1d"
-			{
-				if ((lcd_escape[3] == ';') && e_4_is_num) // escape = "\x1b%1d;%1dH"
-				{
-					if (chr == 'H') // escape = "\x1b%1d;%1dH"
-						lcd_set_cursor(e4_num, e2_num); // CursorHome
-					else if (chr_is_num)
-						return; // escape = "\x1b%1d;%2d"
-				}
-				else if (e_3_is_num && (lcd_escape[4] == ';') && chr_is_num)
-					return; // escape = "\x1b%2d;%1d"
-			}
-		}
-		break;
-	case 6:
-		if (e_2_is_num) // escape = "\x1b[%1d"
-		{
-			if ((lcd_escape[3] == ';') && e_4_is_num && e_5_is_num && (chr == 'H')) // escape = "\x1b%1d;%2dH"
-				lcd_set_cursor(e45_num, e2_num); // CursorHome
-			else if (e_3_is_num && (lcd_escape[4] == ';') && e_5_is_num) // escape = "\x1b%2d;%1d"
-			{
-				if (chr == 'H') // escape = "\x1b%2d;%1dH"
-					lcd_set_cursor(e5_num, e23_num); // CursorHome
-				else if (chr_is_num) // "\x1b%2d;%2d"
-					return;
-			}
-		}
-		break;
-	case 7:
-		if (e_2_is_num && e_3_is_num && (lcd_escape[4] == ';')) // "\x1b[%2d;"
-			if (e_5_is_num && e_6_is_num && (chr == 'H')) // "\x1b[%2d;%2dH"
-				lcd_set_cursor(e56_num, e23_num); // CursorHome
-		break;
-	}
-	escape_cnt = 0; // reset escape
-}
-
-#endif //VT100
-
 
 int lcd_putc(char c)
 {
@@ -690,13 +439,13 @@ void lcd_print(unsigned long n, int base)
 
 void lcd_printNumber(unsigned long n, uint8_t base)
 {
-	unsigned char buf[8 * sizeof(long)]; // Assumes 8-bit chars. 
+	unsigned char buf[8 * sizeof(long)]; // Assumes 8-bit chars.
 	uint8_t i = 0;
 	if (n == 0)
 	{
 		lcd_print('0');
 		return;
-	} 
+	}
 	while (n > 0)
 	{
 		buf[i++] = n % base;
@@ -869,7 +618,7 @@ void lcd_buttons_update(void)
 	uint8_t enc_bits = 0;
     if (!READ(BTN_EN1)) enc_bits |= _BV(0);
     if (!READ(BTN_EN2)) enc_bits |= _BV(1);
-    
+
 	if (enc_bits != enc_bits_old)
     {
 		int8_t newDiff = pgm_read_byte(&encrot_table[(enc_bits_old << 2) | enc_bits]);
@@ -956,9 +705,9 @@ void lcd_frame_start() {
 #endif // DEBUG_CUSTOM_CHARACTERS
 			lcd_custom_characters[i] = 0x7F;
 		}
-		
+
 	}
-	
+
 #ifdef DEBUG_CUSTOM_CHARACTERS
 	printf_P(PSTR("frame start:"));
 	for (uint8_t i = 0; i < 8; i++) {

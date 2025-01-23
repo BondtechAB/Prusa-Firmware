@@ -39,7 +39,7 @@ def link_to_changes_in_release(release, releases):
     """
     Markdown text for a hyperlink showing all edits in a release, or empty string
 
-    :param release: A release version, as a string 
+    :param release: A release version, as a string
     :param releases: A container of releases, in descending order - newest to oldest
     :return: Markdown text for a hyperlink showing the differences between the give release and the prior one,
              or empty string, if the previous release is not known

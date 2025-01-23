@@ -149,14 +149,14 @@ INVERSE_CUSTOM_CHARS = {v: k for k, v in CUSTOM_CHARS.items()}
 
 def generateLineInTable(index, chars):
     pixels = chars[FONT_TABLE[index].charListIndex]["PIXELS"].split(',')
-    
+
     # Generate the rows binary data
     rows = []
     for i in range(8):
         rows.append(0)
         for j in range(5):
             rows[i] |= (1 << (5 - j - 1)) if pixels[j * 8 + i] == "0" else 0
-    
+
     # compress the rows data
     colByte = 0
     compressedRows = []
@@ -175,9 +175,9 @@ def generateLineInTable(index, chars):
 def generateFont():
     tree = ET.parse(os.path.join(sys.path[0], "Prusa.lcd"))
     root = tree.getroot()
-    
+
     CharList = [Char.attrib for Char in root.iter("CHAR")]
-    
+
     f = open(os.path.join(sys.path[0], "../../Firmware/FontTable.h"), "w", encoding='utf8')
     for index in range(len(FONT_TABLE)):
         f.write(generateLineInTable(index, CharList) + '\n')

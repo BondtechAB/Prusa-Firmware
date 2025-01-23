@@ -1,19 +1,19 @@
 /*
   temperature.c - temperature control
   Part of Marlin
-  
+
  Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
- 
+
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
  (at your option) any later version.
- 
+
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  GNU General Public License for more details.
- 
+
  You should have received a copy of the GNU General Public License
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,8 +22,8 @@
  This firmware is a mashup between Sprinter and grbl.
   (https://github.com/kliment/Sprinter)
   (https://github.com/simen/grbl/tree)
- 
- It has preliminary support for Matthew Roberts advance algorithm 
+
+ It has preliminary support for Matthew Roberts advance algorithm
     http://reprap.org/pipermail/reprap-dev/2011-May/003323.html
 
  */
@@ -36,6 +36,7 @@
 #include "fancheck.h"
 #include "messages.h"
 #include "language.h"
+#include "lcd.h"
 
 #include "SdFatUtil.h"
 
@@ -127,7 +128,7 @@ int current_voltage_raw_bed = 0;
 
 int current_temperature_bed_raw = 0;
 float current_temperature_bed = 0.0;
-  
+
 
 #ifdef PIDTEMP
   float _Kp, _Ki, _Kd;
@@ -144,7 +145,7 @@ float current_temperature_bed = 0.0;
       pid_tuning_finished = false;
   }
 #endif //PIDTEMP
-  
+
 unsigned char soft_pwm_bed;
 
 #ifdef BABYSTEPPING
@@ -282,7 +283,7 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
 		  pid_cycle = 0;
           return;
         }
-	
+
   SERIAL_ECHOLNPGM("PID Autotune start");
 
   if (extruder<0)
@@ -318,7 +319,7 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
       #endif
 
       if(heating == true && input > temp) {
-        if(_millis() - t2 > 5000) { 
+        if(_millis() - t2 > 5000) {
           heating=false;
           if (extruder<0) {
             soft_pwm_bed = (bias - d) >> 1;
@@ -384,7 +385,7 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
           pid_cycle++;
           min=temp;
         }
-      } 
+      }
     }
     #ifndef MAX_OVERSHOOT_PID_AUTOTUNE
       #define MAX_OVERSHOOT_PID_AUTOTUNE 20
@@ -398,16 +399,16 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
     if(_millis() - temp_millis > 2000) {
       int p;
       if (extruder<0){
-        p=soft_pwm_bed;       
+        p=soft_pwm_bed;
         SERIAL_PROTOCOLPGM("B:");
       }else{
-        p=soft_pwm[extruder];       
+        p=soft_pwm[extruder];
         SERIAL_PROTOCOLPGM("T:");
       }
-			
-      SERIAL_PROTOCOL(input);   
+
+      SERIAL_PROTOCOL(input);
       SERIAL_PROTOCOLPGM(" @:");
-      SERIAL_PROTOCOLLN(p);       
+      SERIAL_PROTOCOLLN(p);
 		if (safety_check_cycles == 0) { //save ambient temp
 			temp_ambient = input;
 			//SERIAL_ECHOPGM("Ambient T: ");
@@ -415,7 +416,7 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
 			safety_check_cycles++;
 		}
 		else if (safety_check_cycles < safety_check_cycles_count) { //delay
-			safety_check_cycles++;		
+			safety_check_cycles++;
 		}
 		else if (safety_check_cycles == safety_check_cycles_count){ //check that temperature is rising
 			safety_check_cycles++;
@@ -424,7 +425,7 @@ void __attribute__((noinline)) PID_autotune(float temp, int extruder, int ncycle
 			//SERIAL_ECHOPGM("s. Difference between current and ambient T: ");
 			//MYSERIAL.println(input - temp_ambient);
 
-			if (fabs(input - temp_ambient) < 5.0) { 
+			if (fabs(input - temp_ambient) < 5.0) {
 				temp_runaway_stop(false, (extruder<0));
 				pid_tuning_finished = true;
 				return;
@@ -453,14 +454,14 @@ void updatePID()
   // TODO: iState_sum_max and PID values should be synchronized for temp_mgr_isr
 #ifdef PIDTEMP
   for(uint_least8_t e = 0; e < EXTRUDERS; e++) {
-     iState_sum_max[e] = PID_INTEGRAL_DRIVE_MAX / cs.Ki;  
+     iState_sum_max[e] = PID_INTEGRAL_DRIVE_MAX / cs.Ki;
   }
 #endif
 #ifdef PIDTEMPBED
-  temp_iState_max_bed = PID_INTEGRAL_DRIVE_MAX / cs.bedKi;  
+  temp_iState_max_bed = PID_INTEGRAL_DRIVE_MAX / cs.bedKi;
 #endif
 }
-  
+
 int getHeaterPower(int heater) {
 	if (heater<0)
 		return soft_pwm_bed;
@@ -583,7 +584,7 @@ static float analog2temp(int raw, uint8_t e) {
       SERIAL_ERRORLNPGM(" - Invalid extruder number !");
       kill();
       return 0.0;
-  } 
+  }
   #ifdef HEATER_0_USES_MAX6675
     if (e == 0)
     {
@@ -601,8 +602,8 @@ static float analog2temp(int raw, uint8_t e) {
     {
       if (PGM_RD_W((*tt)[i][0]) > raw)
       {
-        celsius = PGM_RD_W((*tt)[i-1][1]) + 
-          (raw - PGM_RD_W((*tt)[i-1][0])) * 
+        celsius = PGM_RD_W((*tt)[i-1][1]) +
+          (raw - PGM_RD_W((*tt)[i-1][0])) *
           (float)(PGM_RD_W((*tt)[i][1]) - PGM_RD_W((*tt)[i-1][1])) /
           (float)(PGM_RD_W((*tt)[i][0]) - PGM_RD_W((*tt)[i-1][0]));
         break;
@@ -628,8 +629,8 @@ static float analog2tempBed(int raw) {
     {
       if (PGM_RD_W(BEDTEMPTABLE[i][0]) > raw)
       {
-        celsius  = PGM_RD_W(BEDTEMPTABLE[i-1][1]) + 
-          (raw - PGM_RD_W(BEDTEMPTABLE[i-1][0])) * 
+        celsius  = PGM_RD_W(BEDTEMPTABLE[i-1][1]) +
+          (raw - PGM_RD_W(BEDTEMPTABLE[i-1][0])) *
           (float)(PGM_RD_W(BEDTEMPTABLE[i][1]) - PGM_RD_W(BEDTEMPTABLE[i-1][1])) /
           (float)(PGM_RD_W(BEDTEMPTABLE[i][0]) - PGM_RD_W(BEDTEMPTABLE[i-1][0]));
         break;
@@ -682,8 +683,8 @@ static float analog2tempAmbient(int raw)
     {
       if (PGM_RD_W(AMBIENTTEMPTABLE[i][0]) > raw)
       {
-        celsius  = PGM_RD_W(AMBIENTTEMPTABLE[i-1][1]) + 
-          (raw - PGM_RD_W(AMBIENTTEMPTABLE[i-1][0])) * 
+        celsius  = PGM_RD_W(AMBIENTTEMPTABLE[i-1][1]) +
+          (raw - PGM_RD_W(AMBIENTTEMPTABLE[i-1][0])) *
           (float)(PGM_RD_W(AMBIENTTEMPTABLE[i][1]) - PGM_RD_W(AMBIENTTEMPTABLE[i-1][1])) /
           (float)(PGM_RD_W(AMBIENTTEMPTABLE[i][0]) - PGM_RD_W(AMBIENTTEMPTABLE[i-1][0]));
         break;
@@ -699,13 +700,13 @@ void soft_pwm_init()
 {
 #if MB(RUMBA) && ((TEMP_SENSOR_0==-1) || (TEMP_SENSOR_BED==-1))
   //disable RUMBA JTAG in case the thermocouple extension is plugged on top of JTAG connector
-  MCUCR=(1<<JTD); 
+  MCUCR=(1<<JTD);
   MCUCR=(1<<JTD);
 #endif
-  
-  // Finish init of mult extruder arrays 
+
+  // Finish init of mult extruder arrays
   for(int e = 0; e < EXTRUDERS; e++) {
-    // populate with the first value 
+    // populate with the first value
     maxttemp[e] = maxttemp[0];
 #ifdef PIDTEMP
     iState_sum_min[e] = 0.0;
@@ -717,13 +718,13 @@ void soft_pwm_init()
 #endif //PIDTEMPBED
   }
 
-  #if defined(HEATER_0_PIN) && (HEATER_0_PIN > -1) 
+  #if defined(HEATER_0_PIN) && (HEATER_0_PIN > -1)
     SET_OUTPUT(HEATER_0_PIN);
   #endif
-  #if defined(HEATER_BED_PIN) && (HEATER_BED_PIN > -1) 
+  #if defined(HEATER_BED_PIN) && (HEATER_BED_PIN > -1)
     SET_OUTPUT(HEATER_BED_PIN);
-  #endif  
-  #if defined(FAN_PIN) && (FAN_PIN > -1) 
+  #endif
+  #if defined(FAN_PIN) && (FAN_PIN > -1)
     SET_OUTPUT(FAN_PIN);
     #ifdef FAST_PWM_FAN
     setPwmFrequency(FAN_PIN, 1); // No prescaling. Pwm frequency = F_CPU/256/8
@@ -737,18 +738,18 @@ void soft_pwm_init()
     #ifndef SDSUPPORT
       SET_OUTPUT(SCK_PIN);
       WRITE(SCK_PIN,0);
-    
+
       SET_OUTPUT(MOSI_PIN);
       WRITE(MOSI_PIN,1);
-    
+
       SET_INPUT(MISO_PIN);
       WRITE(MISO_PIN,1);
     #endif
     /* Using pinMode and digitalWrite, as that was the only way I could get it to compile */
-    
+
     //Have to toggle SD card CS pin to low first, to enable firmware to talk with SD card
 	pinMode(SS_PIN, OUTPUT);
-	digitalWrite(SS_PIN,0);  
+	digitalWrite(SS_PIN,0);
 	pinMode(MAX6675_SS, OUTPUT);
 	digitalWrite(MAX6675_SS,1);
   #endif
@@ -892,7 +893,7 @@ static void temp_runaway_check(uint8_t _heater_id, float _target_temperature, fl
 					__preheat_errors[_heater_id] = 0;
 				}
 
-				if (__preheat_errors[_heater_id] > ((_isbed) ? 3 : 5)) 
+				if (__preheat_errors[_heater_id] > ((_isbed) ? 3 : 5))
                     set_temp_error((_isbed?TempErrorSource::bed:TempErrorSource::hotend), _heater_id, TempErrorType::preheat);
 
 				__preheat_start[_heater_id] = _current_temperature;
@@ -914,7 +915,7 @@ static void temp_runaway_check(uint8_t _heater_id, float _target_temperature, fl
 
 
 		if (temp_runaway_check_active)
-		{			
+		{
 			//	we are in range
 			if ((_current_temperature > (_target_temperature - __hysteresis)) && (_current_temperature < (_target_temperature + __hysteresis)))
 			{
@@ -1044,47 +1045,47 @@ int max6675_temp = 2000;
 
 int read_max6675()
 {
-  if (_millis() - max6675_previous_millis < MAX6675_HEAT_INTERVAL) 
+  if (_millis() - max6675_previous_millis < MAX6675_HEAT_INTERVAL)
     return max6675_temp;
-  
+
   max6675_previous_millis = _millis();
   max6675_temp = 0;
-    
+
   #ifdef	PRR
     PRR &= ~(1<<PRSPI);
   #elif defined PRR0
     PRR0 &= ~(1<<PRSPI);
   #endif
-  
+
   SPCR = (1<<MSTR) | (1<<SPE) | (1<<SPR0);
-  
+
   // enable TT_MAX6675
   WRITE(MAX6675_SS, 0);
-  
+
   // ensure 100ns delay - a bit extra is fine
   asm("nop");//50ns on 20Mhz, 62.5ns on 16Mhz
   asm("nop");//50ns on 20Mhz, 62.5ns on 16Mhz
-  
+
   // read MSB
   SPDR = 0;
   for (;(SPSR & (1<<SPIF)) == 0;);
   max6675_temp = SPDR;
   max6675_temp <<= 8;
-  
+
   // read LSB
   SPDR = 0;
   for (;(SPSR & (1<<SPIF)) == 0;);
   max6675_temp |= SPDR;
-  
+
   // disable TT_MAX6675
   WRITE(MAX6675_SS, 1);
 
-  if (max6675_temp & 4) 
+  if (max6675_temp & 4)
   {
     // thermocouple open
     max6675_temp = 2000;
   }
-  else 
+  else
   {
     max6675_temp = max6675_temp >> 3;
   }
@@ -1140,33 +1141,14 @@ FORCE_INLINE static void soft_pwm_core()
   {
     soft_pwm_0 = soft_pwm[0];
     if(soft_pwm_0 > 0)
-	{ 
+	{
       WRITE(HEATER_0_PIN,1);
 #ifdef HEATERS_PARALLEL
       WRITE(HEATER_1_PIN,1);
 #endif
     } else WRITE(HEATER_0_PIN,0);
   }
-#if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
-  
-#if 0  // @@DR vypnuto pro hw pwm bedu
-  // tuhle prasarnu bude potreba poustet ve stanovenych intervalech, jinak nemam moc sanci zareagovat
-  // teoreticky by se tato cast uz vubec nemusela poustet
-  if ((pwm_count & ((1 << HEATER_BED_SOFT_PWM_BITS) - 1)) == 0)
-  {
-    soft_pwm_b = soft_pwm_bed >> (7 - HEATER_BED_SOFT_PWM_BITS);
-#  ifndef SYSTEM_TIMER_2
-	// tady budu krokovat pomalou frekvenci na automatu - tohle je rizeni spinani a rozepinani
-	// jako ridici frekvenci mam 2khz, jako vystupni frekvenci mam 30hz
-	// 2kHz jsou ovsem ve slysitelnem pasmu, mozna bude potreba jit s frekvenci nahoru (a tomu taky prizpusobit ostatni veci)
-	// Teoreticky bych mohl stahnout OCR0B citac na 6, cimz bych se dostal nekam ke 40khz a tady potom honit PWM rychleji nebo i pomaleji
-	// to nicemu nevadi. Soft PWM scale by se 20x zvetsilo (no dobre, 16x), cimz by se to posunulo k puvodnimu 30Hz PWM
-	//if(soft_pwm_b > 0) WRITE(HEATER_BED_PIN,1); else WRITE(HEATER_BED_PIN,0);
-#  endif //SYSTEM_TIMER_2
-  }
-#endif
-#endif
-  
+
 #ifdef FAN_SOFT_PWM
   if ((pwm_count & ((1 << FAN_SOFT_PWM_BITS) - 1)) == 0)
   {
@@ -1175,25 +1157,17 @@ FORCE_INLINE static void soft_pwm_core()
   }
 #endif
   if(soft_pwm_0 < pwm_count)
-  { 
+  {
     WRITE(HEATER_0_PIN,0);
 #ifdef HEATERS_PARALLEL
     WRITE(HEATER_1_PIN,0);
 #endif
   }
 
-#if 0 // @@DR  
-#if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
-  if (soft_pwm_b < (pwm_count & ((1 << HEATER_BED_SOFT_PWM_BITS) - 1))){
-	  //WRITE(HEATER_BED_PIN,0);
-  }
-  //WRITE(HEATER_BED_PIN, pwm_count & 1 );
-#endif
-#endif
 #ifdef FAN_SOFT_PWM
   if (soft_pwm_fan < (pwm_count & ((1 << FAN_SOFT_PWM_BITS) - 1))) WRITE(FAN_PIN,0);
 #endif
-  
+
   pwm_count += (1 << SOFT_PWM_SCALE);
   pwm_count &= 0x7f;
 
@@ -1207,12 +1181,12 @@ FORCE_INLINE static void soft_pwm_core()
 #define MIN_STATE_TIME 16 // MIN_STATE_TIME * 65.5 = time in milliseconds
 #endif
   if (slow_pwm_count == 0) {
-    // EXTRUDER 0 
+    // EXTRUDER 0
     soft_pwm_0 = soft_pwm[0];
     if (soft_pwm_0 > 0) {
-      // turn ON heather only if the minimum time is up 
-      if (state_timer_heater_0 == 0) { 
-	// if change state set timer 
+      // turn ON heather only if the minimum time is up
+      if (state_timer_heater_0 == 0) {
+	// if change state set timer
 	if (state_heater_0 == 0) {
 	  state_timer_heater_0 = MIN_STATE_TIME;
 	}
@@ -1223,9 +1197,9 @@ FORCE_INLINE static void soft_pwm_core()
 #endif
       }
     } else {
-      // turn OFF heather only if the minimum time is up 
+      // turn OFF heather only if the minimum time is up
       if (state_timer_heater_0 == 0) {
-	// if change state set timer 
+	// if change state set timer
 	if (state_heater_0 == 1) {
 	  state_timer_heater_0 = MIN_STATE_TIME;
 	}
@@ -1241,9 +1215,9 @@ FORCE_INLINE static void soft_pwm_core()
     // BED
     soft_pwm_b = soft_pwm_bed;
     if (soft_pwm_b > 0) {
-      // turn ON heather only if the minimum time is up 
-      if (state_timer_heater_b == 0) { 
-	// if change state set timer 
+      // turn ON heather only if the minimum time is up
+      if (state_timer_heater_b == 0) {
+	// if change state set timer
 	if (state_heater_b == 0) {
 	  state_timer_heater_b = MIN_STATE_TIME;
 	}
@@ -1251,9 +1225,9 @@ FORCE_INLINE static void soft_pwm_core()
 	//WRITE(HEATER_BED_PIN, 1);
       }
     } else {
-      // turn OFF heather only if the minimum time is up 
+      // turn OFF heather only if the minimum time is up
       if (state_timer_heater_b == 0) {
-	// if change state set timer 
+	// if change state set timer
 	if (state_heater_b == 1) {
 	  state_timer_heater_b = MIN_STATE_TIME;
 	}
@@ -1263,12 +1237,12 @@ FORCE_INLINE static void soft_pwm_core()
     }
 #endif
   } // if (slow_pwm_count == 0)
-  
-  // EXTRUDER 0 
+
+  // EXTRUDER 0
   if (soft_pwm_0 < slow_pwm_count) {
-    // turn OFF heather only if the minimum time is up 
-    if (state_timer_heater_0 == 0) { 
-      // if change state set timer 
+    // turn OFF heather only if the minimum time is up
+    if (state_timer_heater_0 == 0) {
+      // if change state set timer
       if (state_heater_0 == 1) {
 	state_timer_heater_0 = MIN_STATE_TIME;
       }
@@ -1283,9 +1257,9 @@ FORCE_INLINE static void soft_pwm_core()
 #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
   // BED
   if (soft_pwm_b < slow_pwm_count) {
-    // turn OFF heather only if the minimum time is up 
-    if (state_timer_heater_b == 0) { 
-      // if change state set timer 
+    // turn OFF heather only if the minimum time is up
+    if (state_timer_heater_b == 0) {
+      // if change state set timer
       if (state_heater_b == 1) {
 	state_timer_heater_b = MIN_STATE_TIME;
       }
@@ -1294,7 +1268,7 @@ FORCE_INLINE static void soft_pwm_core()
     }
   }
 #endif
-  
+
 #ifdef FAN_SOFT_PWM
   if ((pwm_count & ((1 << FAN_SOFT_PWM_BITS) - 1)) == 0)
     soft_pwm_fan = fanSpeedSoftPwm / (1 << (8 - FAN_SOFT_PWM_BITS));
@@ -1305,24 +1279,24 @@ FORCE_INLINE static void soft_pwm_core()
 
   pwm_count += (1 << SOFT_PWM_SCALE);
   pwm_count &= 0x7f;
-  
+
   // increment slow_pwm_count only every 64 pwm_count circa 65.5ms
   if ((pwm_count % 64) == 0) {
     slow_pwm_count++;
     slow_pwm_count &= 0x7f;
-    
+
     // Extruder 0
     if (state_timer_heater_0 > 0) {
       state_timer_heater_0--;
     }
 
 #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
-    // Bed   
-    if (state_timer_heater_b > 0) 
+    // Bed
+    if (state_timer_heater_b > 0)
       state_timer_heater_b--;
 #endif
   } //if ((pwm_count % 64) == 0) {
-  
+
 #endif //ifndef SLOW_PWM_HEATERS
 }
 

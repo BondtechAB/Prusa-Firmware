@@ -7,9 +7,9 @@ class mesh_bed_leveling {
 public:
     uint8_t active;
     float z_values[MESH_NUM_Y_POINTS][MESH_NUM_X_POINTS];
-    
+
     mesh_bed_leveling() { reset(); }
-    
+
     void reset();
 
     static float get_x(int i) { return BED_X(i) + X_PROBE_OFFSET_FROM_EXTRUDER; }

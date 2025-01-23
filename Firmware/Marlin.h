@@ -21,7 +21,6 @@
 #include "Configuration.h"
 #include "pins.h"
 #include "Timer.h"
-#include "mmu2.h"
 #include "printer_state.h"
 
 #ifndef AT90USB
@@ -63,8 +62,6 @@
 #else
   #define MYSERIAL MSerial
 #endif
-
-#include "lcd.h"
 
 #define SERIAL_PROTOCOL(x) (MYSERIAL.print(x))
 #define SERIAL_PROTOCOL_F(x,y) (MYSERIAL.print(x,y))
@@ -136,7 +133,7 @@ void manage_inactivity(bool ignore_stepper_queue=false);
   #define disable_y() ;
 #endif
 
-#if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN > -1 
+#if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN > -1
 	#if defined(Z_AXIS_ALWAYS_ON)
 		  #ifdef Z_DUAL_STEPPER_DRIVERS
 			#define  poweron_z() { WRITE(Z_ENABLE_PIN, Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN, Z_ENABLE_ON); }
@@ -351,7 +348,7 @@ bool babystep_allowed_strict();
 
 extern void calculate_extruder_multipliers();
 
-// Similar to the default Arduino delay function, 
+// Similar to the default Arduino delay function,
 // but it keeps the background tasks running.
 extern void delay_keep_alive(unsigned int ms);
 
@@ -367,9 +364,6 @@ void bed_analysis(float x_dimension, float y_dimension, int x_points_num, int y_
 void bed_check(float x_dimension, float y_dimension, int x_points_num, int y_points_num, float shift_x, float shift_y);
 #endif //HEATBED_ANALYSIS
 float temp_comp_interpolation(float temperature);
-#if 0
-void show_fw_version_warnings();
-#endif
 uint8_t check_printer_version();
 
 #ifdef PINDA_THERMISTOR
@@ -417,7 +411,7 @@ extern uint8_t calc_percent_done();
 /*enum MarlinBusyState {
 	NOT_BUSY,           // Not in a handler
 	IN_HANDLER,         // Processing a GCode
-	IN_PROCESS,         // Known to be blocking command input (as in G29)
+	IN_PROCESS,         // Known to be blocking command input
 	PAUSED_FOR_USER,    // Blocking pending any input
 	PAUSED_FOR_INPUT    // Blocking pending text input (concept)
 };*/
@@ -457,10 +451,10 @@ void gcode_M701(float fastLoadLength, uint8_t mmuSlotIndex);
 #define UVLO !(PINE & (1<<4))
 
 
-void M600_load_filament();
-void M600_load_filament_movements();
+void M600_load_filament(const char* filament_name);
+void M600_load_filament_movements(const char* filament_name);
 void M600_wait_for_user();
-bool M600_check_state_and_repeat();
+bool M600_check_state_and_repeat(const char* filament_name);
 void load_filament_final_feed();
 void marlin_wait_for_click();
 float raise_z(float delta);

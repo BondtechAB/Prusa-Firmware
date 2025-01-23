@@ -120,7 +120,7 @@ foreach(line ${output})
     string(REGEX REPLACE "[^A-Za-z0-9_]" "_" test_name_clean ${test_name})
     set(output_dir_arg "--out ${output_dir}/${output_prefix}${test_name_clean}${output_suffix}")
   endif()
-  
+
   # ...and add to script
   add_command(add_test
     "${prefix}${test}${suffix}"

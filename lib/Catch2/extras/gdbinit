@@ -8,9 +8,9 @@
 # regexp "Catch", which matches the complete Catch namespace.
 # If you want to skip just some parts of the Catch code you can modify the
 # regexp accordingly.
-# 
+#
 # If you want to permanently skip stepping into Catch code copy the following
 # line into your ~/.gdbinit file
-# 
+#
 
 skip -rfu Catch

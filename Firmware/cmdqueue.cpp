@@ -108,7 +108,7 @@ void cmdqueue_reset()
 	//commands are removed from command queue after process_command() function is finished
 	//reseting command queue and enqueing new commands during some (usually long running) command processing would cause that new commands are immediately removed from queue (or damaged)
 	//this will ensure that all new commands which are enqueued after cmdqueue reset, will be always executed
-	cmdbuffer_front_already_processed = true; 
+	cmdbuffer_front_already_processed = true;
 }
 
 // How long a string could be pushed to the front of the command queue?
@@ -354,7 +354,7 @@ void enquecommand_front(const char *cmd, bool from_progmem)
 void repeatcommand_front()
 {
     cmdbuffer_front_already_processed = true;
-} 
+}
 
 void get_command()
 {
@@ -369,7 +369,7 @@ void get_command()
 
   // start of serial line processing loop
   while (((MYSERIAL.available() > 0 && !saved_printing) || (MYSERIAL.available() > 0 && printingIsPaused())) && !cmdqueue_serial_disabled) {  //is print is saved (crash detection or filament detection), dont process data from serial line
-	
+
 #ifdef ENABLE_MEATPACK
     // MeatPack Changes
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -596,9 +596,9 @@ void get_command()
       {
         // This is either an empty line, or a line with just a comment.
         // Continue to the following line, and continue accumulating the number of bytes
-        // read from the sdcard into sd_count, 
+        // read from the sdcard into sd_count,
         // so that the length of the already read empty lines and comments will be added
-        // to the following non-empty line. 
+        // to the following non-empty line.
         return; // prevent cycling indefinitely - let manage_heaters do their job
       }
       // The new command buffer could be updated non-atomically, because it is not yet considered
@@ -635,7 +635,7 @@ void get_command()
 
       comment_mode = false; //for new command
       serial_count = 0; //clear buffer
-    
+
       if(card.eof()) break;
 
       // The following line will reserve buffer space if available.

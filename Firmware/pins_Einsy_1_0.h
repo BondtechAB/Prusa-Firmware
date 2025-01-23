@@ -119,7 +119,7 @@
 #define SDCARDDETECT           15
 
 #define TACH_0                 79 // !!! changed from 81 (EINY03)
-#define TACH_1                 80 
+#define TACH_1                 80
 
 #define IR_SENSOR_PIN 62 //idler sensor @PK0 (digital pin 62/A8)
 

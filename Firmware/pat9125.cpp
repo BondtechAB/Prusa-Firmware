@@ -54,7 +54,7 @@ const PROGMEM uint8_t pat9125_init_bank0[] = {
 	PAT9125_RES_Y, PAT9125_YRES,
 	// Set data format and sensor orientation.
 	PAT9125_ORIENTATION, ((PAT9125_12B_RES?0x04:0) | (PAT9125_INVERT_X?0x08:0) | (PAT9125_INVERT_Y?0x10:0) | (PAT9125_SWAP_XY?0x20:0)),
-	
+
 	// Now continues the magic sequence from the PAT912EL Application Note: Firmware Guides for Tracking Optimization.
 	0x5e, 0x08,
 	0x20, 0x64,
@@ -136,22 +136,22 @@ uint8_t pat9125_init(void)
 	pat9125_wr_reg(PAT9125_CONFIG, 0x97);
 	// Wait until the sensor reboots.
 	_delay_ms(1);
-	
+
 	//Write init sequence in bank0. MUST ALREADY BE IN bank0.
 	if (!pat9125_wr_seq(pat9125_init_bank0))
 		return 0;
-	
+
 	_delay_ms(10); // not sure why this is here. But I'll allow it.
-	
+
 	// Switch to bank1, not allowed to perform pat9125_wr_reg_verify on this register.
 	pat9125_wr_reg(PAT9125_BANK_SELECTION, 0x01);
 	//Write init sequence in bank1. MUST ALREADY BE IN bank1.
 	if (!pat9125_wr_seq(pat9125_init_bank1))
 		return 0;
-	
+
 	// Switch to bank0, not allowed to perform pat9125_wr_reg_verify on this register.
 	pat9125_wr_reg(PAT9125_BANK_SELECTION, 0x00);
-	
+
 	// Enable write protect.
 	pat9125_wr_reg(PAT9125_WP, 0x00); //prevents writing to registers over 0x09
 
@@ -161,14 +161,14 @@ uint8_t pat9125_init(void)
 #else //PAT9125_NEW_INIT
 	// Disable write protect.
 	pat9125_wr_reg(PAT9125_WP, 0x5a); //allows writing to all registers
-	
+
 	pat9125_wr_reg(PAT9125_RES_X, PAT9125_XRES);
 	pat9125_wr_reg(PAT9125_RES_Y, PAT9125_YRES);
 	printf_P(PSTR("PAT9125_RES_X=%u\n"), pat9125_rd_reg(PAT9125_RES_X));
 	printf_P(PSTR("PAT9125_RES_Y=%u\n"), pat9125_rd_reg(PAT9125_RES_Y));
-	
+
 	pat9125_wr_reg(PAT9125_ORIENTATION, ((PAT9125_12B_RES?0x04:0) | (PAT9125_INVERT_X?0x08:0) | (PAT9125_INVERT_Y?0x10:0) | (PAT9125_SWAP_XY?0x20:0)));
-	
+
 	// Enable write protect.
 	pat9125_wr_reg(PAT9125_WP, 0x00); //prevents writing to registers over 0x09
 #endif //PAT9125_NEW_INIT

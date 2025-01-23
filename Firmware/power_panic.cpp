@@ -191,10 +191,22 @@ void uvlo_() {
     eeprom_update_float_notify((float*)(EEPROM_UVLO_LA_K), extruder_advance_K);
 #endif
 
+#ifdef PREVENT_DANGEROUS_EXTRUDE
+    eeprom_update_word_notify((uint16_t*)EEPROM_UVLO_EXTRUDE_MINTEMP, extrude_min_temp);
+#endif //PREVENT_DANGEROUS_EXTRUDE
+    eeprom_update_block_notify(cs.max_acceleration_mm_per_s2_normal, (uint32_t *)EEPROM_UVLO_ACCELL_MM_S2_NORMAL, sizeof(cs.max_acceleration_mm_per_s2_normal));
+    eeprom_update_block_notify(cs.max_acceleration_mm_per_s2_silent, (uint32_t *)EEPROM_UVLO_ACCELL_MM_S2_SILENT, sizeof(cs.max_acceleration_mm_per_s2_silent));
+    eeprom_update_block_notify(cs.max_feedrate_normal, (float *)EEPROM_UVLO_MAX_FEEDRATE_NORMAL, sizeof(cs.max_feedrate_normal));
+    eeprom_update_block_notify(cs.max_feedrate_silent, (float *)EEPROM_UVLO_MAX_FEEDRATE_SILENT, sizeof(cs.max_feedrate_silent));
+    eeprom_update_float_notify((float *)(EEPROM_UVLO_MIN_FEEDRATE), cs.minimumfeedrate);
+    eeprom_update_float_notify((float *)(EEPROM_UVLO_MIN_TRAVEL_FEEDRATE), cs.mintravelfeedrate);
+    eeprom_update_dword_notify((uint32_t *)(EEPROM_UVLO_MIN_SEGMENT_TIME_US), cs.min_segment_time_us);
+    eeprom_update_block_notify(cs.max_jerk, (float *)EEPROM_UVLO_MAX_JERK, sizeof(cs.max_jerk));
     // Finally store the "power outage" flag.
     if (did_pause_print) {
         eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO_Z_LIFTED, 1);
     }
+
     eeprom_update_byte_notify((uint8_t*)EEPROM_UVLO, PowerPanic::PENDING_RECOVERY);
 
     // Increment power failure counter
@@ -422,6 +434,17 @@ bool recover_machine_state_after_power_panic() {
     extruder_advance_K = eeprom_read_float((float*)EEPROM_UVLO_LA_K);
 #endif
 
+#ifdef PREVENT_DANGEROUS_EXTRUDE
+    extrude_min_temp = eeprom_read_word((uint16_t*)EEPROM_UVLO_EXTRUDE_MINTEMP);
+#endif //PREVENT_DANGEROUS_EXTRUDE
+    eeprom_read_block(cs.max_acceleration_mm_per_s2_normal, (uint32_t *)EEPROM_UVLO_ACCELL_MM_S2_NORMAL, sizeof(cs.max_acceleration_mm_per_s2_normal));
+    eeprom_read_block(cs.max_acceleration_mm_per_s2_silent, (uint32_t *)EEPROM_UVLO_ACCELL_MM_S2_SILENT, sizeof(cs.max_acceleration_mm_per_s2_silent));
+    eeprom_read_block(cs.max_feedrate_normal, (float *)EEPROM_UVLO_MAX_FEEDRATE_NORMAL, sizeof(cs.max_feedrate_normal));
+    eeprom_read_block(cs.max_feedrate_silent, (float *)EEPROM_UVLO_MAX_FEEDRATE_SILENT, sizeof(cs.max_feedrate_silent));
+    cs.minimumfeedrate = eeprom_read_float((float *)EEPROM_UVLO_MIN_FEEDRATE);
+    cs.mintravelfeedrate = eeprom_read_float((float *)EEPROM_UVLO_MIN_TRAVEL_FEEDRATE);
+    cs.min_segment_time_us = eeprom_read_dword((uint32_t *)EEPROM_UVLO_MIN_SEGMENT_TIME_US);
+    eeprom_read_block(cs.max_jerk, (float *)EEPROM_UVLO_MAX_JERK, sizeof(cs.max_jerk));
      return mbl_was_active;
 }
 

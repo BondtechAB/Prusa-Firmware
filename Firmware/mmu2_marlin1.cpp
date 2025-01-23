@@ -38,6 +38,10 @@ void planner_abort_queued_moves() {
     planner_aborted = false;
 }
 
+bool planner_draining() {
+    return planner_aborted;
+}
+
 void planner_synchronize() {
     st_synchronize();
 }
@@ -46,33 +50,33 @@ bool planner_any_moves() {
     return blocks_queued();
 }
 
-float planner_get_machine_position_E_mm(){
+float planner_get_machine_position_E_mm() {
     return current_position[E_AXIS];
 }
 
-float stepper_get_machine_position_E_mm(){
+float stepper_get_machine_position_E_mm() {
     return st_get_position_mm(E_AXIS);
 }
 
-float planner_get_current_position_E(){
+float planner_get_current_position_E() {
     return current_position[E_AXIS];
 }
 
-void planner_set_current_position_E(float e){
+void planner_set_current_position_E(float e) {
         current_position[E_AXIS] = e;
 }
 
-pos3d planner_current_position(){
+pos3d planner_current_position() {
     return pos3d(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 }
 
-void motion_do_blocking_move_to_xy(float rx, float ry, float feedRate_mm_s){
+void motion_do_blocking_move_to_xy(float rx, float ry, float feedRate_mm_s) {
     current_position[X_AXIS] = rx;
     current_position[Y_AXIS] = ry;
     planner_line_to_current_position_sync(feedRate_mm_s);
 }
 
-void motion_do_blocking_move_to_z(float z, float feedRate_mm_s){
+void motion_do_blocking_move_to_z(float z, float feedRate_mm_s) {
     current_position[Z_AXIS] = z;
     planner_line_to_current_position_sync(feedRate_mm_s);
 }
@@ -84,32 +88,31 @@ void nozzle_park() {
 }
 
 bool marlin_printingIsActive() {
-    // return IS_SD_PRINTING || usb_timer_running();
     return printer_active();
 }
 
-void marlin_manage_heater(){
+void marlin_manage_heater() {
     manage_heater();
 }
 
-void marlin_manage_inactivity(bool b){
-    manage_inactivity(b);
+void marlin_manage_inactivity(bool ignore_stepper_queue) {
+    manage_inactivity(ignore_stepper_queue);
 }
 
-void marlin_idle(bool b){
+void marlin_idle(bool ignore_stepper_queue) {
     manage_heater();
-    manage_inactivity(b);
+    manage_inactivity(ignore_stepper_queue);
 }
 
-void marlin_refresh_print_state_in_ram(){
+void marlin_refresh_print_state_in_ram() {
     refresh_print_state_in_ram();
 }
 
-void marlin_clear_print_state_in_ram(){
+void marlin_clear_print_state_in_ram() {
     clear_print_state_in_ram();
 }
 
-void marlin_stop_and_save_print_to_ram(){
+void marlin_stop_and_save_print_to_ram() {
     stop_and_save_print_to_ram(0,0);
 }
 
@@ -133,10 +136,15 @@ void safe_delay_keep_alive(uint16_t t) {
     delay_keep_alive(t);
 }
 
-void Enable_E0(){ enable_e0(); }
-void Disable_E0(){ disable_e0(); }
+void Enable_E0() {
+    enable_e0();
+}
 
-bool all_axes_homed(){
+void Disable_E0() {
+    disable_e0();
+}
+
+bool all_axes_homed() {
     return axis_known_position[X_AXIS] && axis_known_position[Y_AXIS];
 }
 

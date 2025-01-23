@@ -151,7 +151,7 @@ if (NOT_SUBPROJECT)
           DESTINATION
             ${CATCH_CMAKE_CONFIG_DESTINATION}
         )
-    
+
         # Install debugger helpers
         install(
           FILES

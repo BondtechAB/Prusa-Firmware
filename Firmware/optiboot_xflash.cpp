@@ -13,7 +13,7 @@
 #define OPTIBOOT_MAJVER 6
 #define OPTIBOOT_CUSTOMVER 0
 #define OPTIBOOT_MINVER 2
-static unsigned const int __attribute__((section(".version"))) 
+static unsigned const int __attribute__((section(".version")))
   optiboot_version = 256*(OPTIBOOT_MAJVER + OPTIBOOT_CUSTOMVER) + OPTIBOOT_MINVER;
 
 #if 0

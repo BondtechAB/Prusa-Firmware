@@ -16,5 +16,5 @@ enum PrintType : uint8_t {
 } // namespace PowerPanic
 
 void uvlo_();
-void recover_print(uint8_t automatic); 
+void recover_print(uint8_t automatic);
 void setup_uvlo_interrupt();

@@ -33,11 +33,11 @@ void twi_init(void)
   // activate internal pullups for SDA
   SET_INPUT(SDA_PIN);
   WRITE(SDA_PIN, 1);
-  
+
   // start with the SDA pulled low
   WRITE(SCL_PIN, 0);
   SET_OUTPUT(SCL_PIN);
-  
+
   // clock 10 cycles to make sure that the sensor is not stuck in a register read.
   for (uint8_t i = 0; i < 10; i++) {
     WRITE(SCL_PIN, 1);
@@ -64,7 +64,7 @@ void twi_disable(void)
 {
   // disable TWI hardware.
   TWCR = 0;
-  
+
   // deactivate internal pullups for twi.
   WRITE(SDA_PIN, 0);
   WRITE(SCL_PIN, 0);
@@ -124,13 +124,13 @@ uint8_t twi_check(uint8_t address)
     TWCR = _BV(TWEN) | _BV(TWINT) | _BV(TWSTA);
     if(twi_wait(TW_START))
         return 1;
-    
+
       // send address
     TWDR = TW_WRITE | (address << 1);
     TWCR = _BV(TWEN) | _BV(TWINT);
     if(twi_wait(TW_MT_SLA_ACK))
         return 2;
-    
+
     // send stop
     twi_stop();
     return 0;

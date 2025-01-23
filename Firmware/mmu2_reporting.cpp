@@ -11,6 +11,7 @@
 #include "ultralcd.h"
 #include "Filament_sensor.h"
 #include "language.h"
+#include "lcd.h"
 #include "temperature.h"
 #include "sound.h"
 
@@ -157,7 +158,7 @@ static uint8_t ReportErrorHookMonitor(uint8_t ei) {
         //! |                    |
         //! |>(left)             |
         //! ----------------------
-        //! Three choices 
+        //! Three choices
         //! |>(left)>(mid)>(righ)|
         //! ----------------------
         //! Two choices
@@ -236,7 +237,7 @@ bool TuneMenuEntered() {
 
 void ReportErrorHook(CommandInProgress /*cip*/, ErrorCode ec, uint8_t /*es*/) {
     if (putErrorScreenToSleep) return;
-    
+
     if (mmu2.MMUCurrentErrorCode() == ErrorCode::OK && mmu2.MMULastErrorSource() == MMU2::ErrorSourceMMU) {
         // If the error code suddenly changes to OK, that means
         // a button was pushed on the MMU and the LCD should
